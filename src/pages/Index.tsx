@@ -55,27 +55,42 @@ const Index = () => {
 
     if (results.multiFaceLandmarks) {
       for (const landmarks of results.multiFaceLandmarks) {
-        // Draw eye regions with the selected color
-        const leftEye = landmarks.slice(130, 133);
-        const rightEye = landmarks.slice(359, 362);
+        // Define more precise eye regions using MediaPipe's face mesh landmarks
+        const leftEyePoints = [
+          33, 246, 161, 160, 159, 158, 157, 173, 133, 155, 154, 153, 145, 144, 163, 7
+        ].map(index => landmarks[index]);
+
+        const rightEyePoints = [
+          362, 398, 384, 385, 386, 387, 388, 466, 263, 249, 390, 373, 374, 380, 381, 382
+        ].map(index => landmarks[index]);
 
         ctx.fillStyle = selectedColor;
         ctx.globalCompositeOperation = "soft-light";
 
         // Draw left eye
         ctx.beginPath();
-        ctx.moveTo(leftEye[0].x * canvas.width, leftEye[0].y * canvas.height);
-        for (const point of leftEye) {
+        ctx.moveTo(
+          leftEyePoints[0].x * canvas.width,
+          leftEyePoints[0].y * canvas.height
+        );
+        for (let i = 1; i < leftEyePoints.length; i++) {
+          const point = leftEyePoints[i];
           ctx.lineTo(point.x * canvas.width, point.y * canvas.height);
         }
+        ctx.closePath();
         ctx.fill();
 
         // Draw right eye
         ctx.beginPath();
-        ctx.moveTo(rightEye[0].x * canvas.width, rightEye[0].y * canvas.height);
-        for (const point of rightEye) {
+        ctx.moveTo(
+          rightEyePoints[0].x * canvas.width,
+          rightEyePoints[0].y * canvas.height
+        );
+        for (let i = 1; i < rightEyePoints.length; i++) {
+          const point = rightEyePoints[i];
           ctx.lineTo(point.x * canvas.width, point.y * canvas.height);
         }
+        ctx.closePath();
         ctx.fill();
       }
     }
