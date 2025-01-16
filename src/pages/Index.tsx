@@ -11,7 +11,7 @@ import { drawConnectors } from "@mediapipe/drawing_utils";
 const Index = () => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [selectedColor, setSelectedColor] = useState("#00ff00");
+  const [selectedColor, setSelectedColor] = useState("#ff0000"); // Initialize with red instead of green
   const [isProcessing, setIsProcessing] = useState(false);
   const { toast } = useToast();
   const faceMeshRef = useRef<FaceMeshModule.FaceMesh | null>(null);
@@ -55,16 +55,15 @@ const Index = () => {
 
     if (results.multiFaceLandmarks) {
       for (const landmarks of results.multiFaceLandmarks) {
-        // Define iris landmarks for more precise coloring
-        const leftIrisPoints = [
-          474, 475, 476, 477
-        ].map(index => landmarks[index]);
-        
-        const rightIrisPoints = [
-          469, 470, 471, 472
-        ].map(index => landmarks[index]);
+        const leftIrisPoints = [474, 475, 476, 477].map(
+          (index) => landmarks[index]
+        );
 
-        ctx.fillStyle = selectedColor;
+        const rightIrisPoints = [469, 470, 471, 472].map(
+          (index) => landmarks[index]
+        );
+
+        ctx.fillStyle = selectedColor; // Use the selected color from state
         ctx.globalCompositeOperation = "overlay";
         ctx.globalAlpha = 0.6;
 
@@ -75,12 +74,15 @@ const Index = () => {
           return { x, y };
         };
 
-        const getIrisRadius = (points: any[], center: { x: number; y: number }) => {
+        const getIrisRadius = (
+          points: any[],
+          center: { x: number; y: number }
+        ) => {
           return Math.max(
-            ...points.map(p => 
+            ...points.map((p) =>
               Math.sqrt(
                 Math.pow((p.x - center.x) * canvas.width, 2) +
-                Math.pow((p.y - center.y) * canvas.height, 2)
+                  Math.pow((p.y - center.y) * canvas.height, 2)
               )
             )
           );
@@ -162,7 +164,7 @@ const Index = () => {
     <div className="container mx-auto p-4">
       <Card className="p-6 max-w-2xl mx-auto">
         <h1 className="text-2xl font-bold mb-6">AI Eye Color Changer</h1>
-        
+
         <div className="space-y-6">
           <div>
             <Label htmlFor="video-upload">Upload Video</Label>
@@ -175,7 +177,7 @@ const Index = () => {
                 className="hidden"
               />
               <Button
-                onClick={() => document.getElementById('video-upload')?.click()}
+                onClick={() => document.getElementById("video-upload")?.click()}
                 className="w-full"
               >
                 <Upload className="mr-2" />
@@ -203,10 +205,7 @@ const Index = () => {
               playsInline
               onPlay={() => processVideo()}
             />
-            <canvas
-              ref={canvasRef}
-              className="w-full rounded-lg"
-            />
+            <canvas ref={canvasRef} className="w-full rounded-lg" />
           </div>
 
           <Button
