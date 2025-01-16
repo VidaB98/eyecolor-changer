@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Upload } from "lucide-react";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 import { FaceMesh } from "@mediapipe/face_mesh";
 import { drawConnectors } from "@mediapipe/drawing_utils";
 
@@ -55,42 +55,61 @@ const Index = () => {
 
     if (results.multiFaceLandmarks) {
       for (const landmarks of results.multiFaceLandmarks) {
-        // Define more precise eye regions using MediaPipe's face mesh landmarks
-        const leftEyePoints = [
-          33, 246, 161, 160, 159, 158, 157, 173, 133, 155, 154, 153, 145, 144, 163, 7
+        // Define iris landmarks for more precise coloring
+        const leftIrisPoints = [
+          474, 475, 476, 477
         ].map(index => landmarks[index]);
-
-        const rightEyePoints = [
-          362, 398, 384, 385, 386, 387, 388, 466, 263, 249, 390, 373, 374, 380, 381, 382
+        
+        const rightIrisPoints = [
+          469, 470, 471, 472
         ].map(index => landmarks[index]);
 
         ctx.fillStyle = selectedColor;
-        ctx.globalCompositeOperation = "soft-light";
+        ctx.globalCompositeOperation = "overlay";
+        ctx.globalAlpha = 0.6;
 
-        // Draw left eye
+        // Calculate iris centers and radii
+        const getIrisCenter = (points: any[]) => {
+          const x = points.reduce((sum, p) => sum + p.x, 0) / points.length;
+          const y = points.reduce((sum, p) => sum + p.y, 0) / points.length;
+          return { x, y };
+        };
+
+        const getIrisRadius = (points: any[], center: { x: number; y: number }) => {
+          return Math.max(
+            ...points.map(p => 
+              Math.sqrt(
+                Math.pow((p.x - center.x) * canvas.width, 2) +
+                Math.pow((p.y - center.y) * canvas.height, 2)
+              )
+            )
+          );
+        };
+
+        // Draw left iris
+        const leftCenter = getIrisCenter(leftIrisPoints);
+        const leftRadius = getIrisRadius(leftIrisPoints, leftCenter);
         ctx.beginPath();
-        ctx.moveTo(
-          leftEyePoints[0].x * canvas.width,
-          leftEyePoints[0].y * canvas.height
+        ctx.arc(
+          leftCenter.x * canvas.width,
+          leftCenter.y * canvas.height,
+          leftRadius,
+          0,
+          2 * Math.PI
         );
-        for (let i = 1; i < leftEyePoints.length; i++) {
-          const point = leftEyePoints[i];
-          ctx.lineTo(point.x * canvas.width, point.y * canvas.height);
-        }
-        ctx.closePath();
         ctx.fill();
 
-        // Draw right eye
+        // Draw right iris
+        const rightCenter = getIrisCenter(rightIrisPoints);
+        const rightRadius = getIrisRadius(rightIrisPoints, rightCenter);
         ctx.beginPath();
-        ctx.moveTo(
-          rightEyePoints[0].x * canvas.width,
-          rightEyePoints[0].y * canvas.height
+        ctx.arc(
+          rightCenter.x * canvas.width,
+          rightCenter.y * canvas.height,
+          rightRadius,
+          0,
+          2 * Math.PI
         );
-        for (let i = 1; i < rightEyePoints.length; i++) {
-          const point = rightEyePoints[i];
-          ctx.lineTo(point.x * canvas.width, point.y * canvas.height);
-        }
-        ctx.closePath();
         ctx.fill();
       }
     }
