@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Upload } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { FaceMesh } from "@mediapipe/face_mesh";
+import * as FaceMeshModule from "@mediapipe/face_mesh";
 import { drawConnectors } from "@mediapipe/drawing_utils";
 
 const Index = () => {
@@ -14,11 +14,11 @@ const Index = () => {
   const [selectedColor, setSelectedColor] = useState("#00ff00");
   const [isProcessing, setIsProcessing] = useState(false);
   const { toast } = useToast();
-  const faceMeshRef = useRef<FaceMesh | null>(null);
+  const faceMeshRef = useRef<FaceMeshModule.FaceMesh | null>(null);
 
   useEffect(() => {
     const initFaceMesh = async () => {
-      const faceMesh = new FaceMesh({
+      const faceMesh = new FaceMeshModule.FaceMesh({
         locateFile: (file) => {
           return `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`;
         },
