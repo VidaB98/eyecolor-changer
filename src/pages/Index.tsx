@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Upload } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import * as faceMesh from "@mediapipe/face_mesh"; // Changed import statement
+import * as faceMesh from "@mediapipe/face_mesh";
 
 const predefinedColors = [
   { name: "Brown", value: "#8B4513" },
@@ -26,7 +26,7 @@ const Index = () => {
     const initFaceMesh = async () => {
       if (typeof window === 'undefined') return;
       
-      const faceMeshInstance = new faceMesh.FaceMesh({ // Updated constructor call
+      const faceMeshInstance = new faceMesh.FaceMesh({
         locateFile: (file) => {
           return `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619/${file}`;
         },
@@ -35,10 +35,10 @@ const Index = () => {
       await faceMeshInstance.initialize();
 
       faceMeshInstance.setOptions({
-        maxNumFaces: 1,
+        maxNumFaces: 5, // Increased from 1 to detect multiple faces
         refineLandmarks: true,
-        minDetectionConfidence: 0.5,
-        minTrackingConfidence: 0.5,
+        minDetectionConfidence: 0.2, // Lowered from 0.5 for better distance detection
+        minTrackingConfidence: 0.2, // Lowered from 0.5 for better tracking
       });
 
       faceMeshInstance.onResults(onResults);
@@ -87,6 +87,7 @@ const Index = () => {
         const leftEyeOpen = isEyeOpen(landmarks, leftEyeVertical);
         const rightEyeOpen = isEyeOpen(landmarks, rightEyeVertical);
 
+        // Adjusted iris detection thresholds for better distance handling
         const leftIrisPoints = [474, 475, 476, 477].map(
           (index) => landmarks[index]
         );
@@ -98,7 +99,7 @@ const Index = () => {
         ctx.fillStyle = selectedColor;
         ctx.strokeStyle = selectedColor;
         ctx.globalCompositeOperation = "multiply";
-        ctx.globalAlpha = 0.5; // Changed from 0.8 to 0.5 (50% opacity)
+        ctx.globalAlpha = 0.5;
 
         const drawIris = (points: any[], isOpen: boolean) => {
           if (!isOpen) return;
@@ -108,6 +109,7 @@ const Index = () => {
             y: points.reduce((sum, p) => sum + p.y, 0) / points.length
           };
 
+          // Adjusted radius calculation for better scaling at different distances
           const radius = Math.max(
             ...points.map((p) =>
               Math.sqrt(
@@ -115,7 +117,7 @@ const Index = () => {
                 Math.pow((p.y - center.y) * canvas.height, 2)
               )
             )
-          ) * 0.85;
+          ) * 1.2; // Increased from 0.85 to 1.2 for better visibility at distance
 
           ctx.beginPath();
           ctx.arc(
