@@ -257,10 +257,15 @@ const Index = () => {
     const setup = async () => {
       if (!cleanup) {
         try {
+          console.log("Initializing FaceMesh...");
           const faceMeshInstance = new FaceMesh({
-            locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619/${file}`,
+            locateFile: (file) => {
+              console.log("Loading file:", file);
+              return `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4/${file}`;
+            },
           });
 
+          console.log("Setting FaceMesh options...");
           await faceMeshInstance.setOptions({
             maxNumFaces: 1,
             refineLandmarks: true,
@@ -268,9 +273,22 @@ const Index = () => {
             minTrackingConfidence: 0.5
           });
 
+          console.log("Setting up FaceMesh results handler...");
           faceMeshInstance.onResults(onResults);
-          await faceMeshInstance.initialize();
-          faceMeshRef.current = faceMeshInstance;
+
+          console.log("Initializing FaceMesh...");
+          try {
+            await faceMeshInstance.initialize();
+            console.log("FaceMesh initialized successfully");
+            faceMeshRef.current = faceMeshInstance;
+          } catch (error) {
+            console.error("Error initializing FaceMesh:", error);
+            toast({
+              title: "Face Detection Error",
+              description: "Failed to initialize face detection. Please try refreshing the page or using a different browser.",
+              variant: "destructive",
+            });
+          }
 
         } catch (error) {
           console.error("Error during FaceMesh setup:", error);
