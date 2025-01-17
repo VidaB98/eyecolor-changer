@@ -26,9 +26,22 @@ const Index = () => {
   const frameInterval = 1000 / targetFPS;
 
   const handleDownload = () => {
-    if (!outputVideoRef.current || !mediaStreamRef.current) return;
+    if (!outputVideoRef.current || !mediaStreamRef.current || !videoRef.current) return;
 
-    const mediaRecorder = new MediaRecorder(mediaStreamRef.current);
+    // Get the audio track from the original video
+    const audioContext = new AudioContext();
+    const audioSource = audioContext.createMediaElementSource(videoRef.current);
+    const audioDestination = audioContext.createMediaStreamDestination();
+    audioSource.connect(audioDestination);
+    audioSource.connect(audioContext.destination); // Keep playing audio through speakers
+
+    // Combine video and audio streams
+    const combinedStream = new MediaStream([
+      ...mediaStreamRef.current.getVideoTracks(),
+      ...audioDestination.stream.getAudioTracks()
+    ]);
+
+    const mediaRecorder = new MediaRecorder(combinedStream);
     const chunks: BlobPart[] = [];
 
     mediaRecorder.ondataavailable = (e) => {
@@ -48,21 +61,27 @@ const Index = () => {
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
 
+      // Clean up audio context
+      audioContext.close();
+
       toast({
         title: "Success",
-        description: "Video downloaded successfully",
+        description: "Video downloaded successfully with audio",
       });
     };
 
     // Start recording the stream
     mediaRecorder.start();
 
+    // Reset video to beginning and play for recording
+    videoRef.current.currentTime = 0;
+    videoRef.current.play();
+
     // Stop recording after the video duration
-    if (videoRef.current) {
-      setTimeout(() => {
-        mediaRecorder.stop();
-      }, videoRef.current.duration * 1000);
-    }
+    setTimeout(() => {
+      mediaRecorder.stop();
+      videoRef.current?.pause();
+    }, videoRef.current.duration * 1000);
   };
 
   useEffect(() => {
