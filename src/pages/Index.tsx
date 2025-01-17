@@ -40,21 +40,75 @@ const Index = () => {
       }
     };
 
-    mediaRecorder.onstop = () => {
-      const blob = new Blob(recordedChunks, { type: 'video/webm' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'processed-video.webm';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+    mediaRecorder.onstop = async () => {
+      const webmBlob = new Blob(recordedChunks, { type: 'video/webm' });
+      
+      try {
+        // Create a temporary video element to play the WebM
+        const videoElement = document.createElement('video');
+        videoElement.src = URL.createObjectURL(webmBlob);
+        await videoElement.play();
 
-      toast({
-        title: "Success",
-        description: "Video downloaded successfully",
-      });
+        // Create a canvas to capture frames
+        const canvas = document.createElement('canvas');
+        canvas.width = videoElement.videoWidth;
+        canvas.height = videoElement.videoHeight;
+        const ctx = canvas.getContext('2d');
+        
+        // Create a new MediaRecorder for MP4
+        const stream = canvas.captureStream(60); // 60 FPS for smoother video
+        const mediaRecorder2 = new MediaRecorder(stream, {
+          mimeType: 'video/webm;codecs=h264', // Using H264 codec for better compatibility
+          videoBitsPerSecond: 8000000 // 8 Mbps for better quality
+        });
+        
+        const mp4Chunks: Blob[] = [];
+        mediaRecorder2.ondataavailable = (e) => {
+          if (e.data.size > 0) {
+            mp4Chunks.push(e.data);
+          }
+        };
+
+        mediaRecorder2.onstop = () => {
+          const finalBlob = new Blob(mp4Chunks, { type: 'video/mp4' });
+          const url = URL.createObjectURL(finalBlob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = 'processed-video.mp4';
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+          videoElement.remove();
+          canvas.remove();
+
+          toast({
+            title: "Success",
+            description: "Video downloaded successfully",
+          });
+        };
+
+        mediaRecorder2.start();
+        
+        // Draw frames from WebM to canvas
+        const drawFrame = () => {
+          if (ctx && !videoElement.ended && !videoElement.paused) {
+            ctx.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
+            requestAnimationFrame(drawFrame);
+          } else {
+            mediaRecorder2.stop();
+          }
+        };
+        
+        drawFrame();
+      } catch (error) {
+        console.error('Error converting video:', error);
+        toast({
+          title: "Error",
+          description: "Failed to convert video",
+          variant: "destructive",
+        });
+      }
     };
 
     mediaRecorder.start();
