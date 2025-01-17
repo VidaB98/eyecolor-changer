@@ -33,6 +33,83 @@ const Index = () => {
   const targetFPS = 60;
   const frameInterval = 1000 / targetFPS;
 
+  useEffect(() => {
+    let cleanup = false;
+
+    const initializeFaceMesh = async () => {
+      try {
+        console.log("Starting FaceMesh initialization...");
+        
+        // Create new FaceMesh instance with explicit CDN URL
+        const faceMeshInstance = new FaceMesh({
+          locateFile: (file) => {
+            return `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619/${file}`;
+          },
+        });
+
+        console.log("Setting FaceMesh options...");
+        await faceMeshInstance.setOptions({
+          maxNumFaces: 1,
+          refineLandmarks: true,
+          minDetectionConfidence: 0.5,
+          minTrackingConfidence: 0.5
+        });
+
+        console.log("Setting up FaceMesh results handler...");
+        faceMeshInstance.onResults(onResults);
+
+        if (!cleanup) {
+          console.log("Initializing FaceMesh...");
+          try {
+            await faceMeshInstance.initialize();
+            console.log("FaceMesh initialized successfully");
+            faceMeshRef.current = faceMeshInstance;
+            setInitError(null);
+          } catch (error) {
+            console.error("Error initializing FaceMesh:", error);
+            setInitError("Failed to initialize face detection. Please ensure you have a stable internet connection and try refreshing the page.");
+            toast({
+              title: "Initialization Error",
+              description: "Failed to initialize face detection. Please refresh the page.",
+              variant: "destructive",
+            });
+          }
+        }
+      } catch (error) {
+        console.error("Error during FaceMesh setup:", error);
+        setInitError("Failed to set up face detection. Please refresh and try again.");
+        toast({
+          title: "Setup Error",
+          description: "Failed to set up face detection. Please refresh and try again.",
+          variant: "destructive",
+        });
+      }
+    };
+
+    initializeFaceMesh();
+
+    return () => {
+      cleanup = true;
+      if (faceMeshRef.current) {
+        faceMeshRef.current.close();
+      }
+      if (mediaStreamRef.current) {
+        mediaStreamRef.current.getTracks().forEach(track => track.stop());
+      }
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
+      if (audioSourceRef.current) {
+        audioSourceRef.current.disconnect();
+        audioSourceRef.current = null;
+      }
+      if (audioContextRef.current) {
+        audioContextRef.current.close();
+        audioContextRef.current = null;
+      }
+    };
+  }, [toast]);
+
   const processVideo = async () => {
     if (!videoRef.current || !faceMeshRef.current) {
       setInitError("Face detection is not initialized. Please refresh the page.");
@@ -170,30 +247,29 @@ const Index = () => {
         }
       }
 
-      if (outputVideoRef.current) {
+      if (outputVideoRef.current && !outputVideoRef.current.srcObject) {
         try {
-          if (!outputVideoRef.current.srcObject) {
-            let stream;
-            const canvas = canvasRef.current as ExtendedHTMLCanvasElement;
-            
-            try {
-              stream = canvas.captureStream(30);
-            } catch (e) {
-              stream = canvas.webkitCaptureStream?.(30) || canvas.mozCaptureStream?.(30);
-            }
-
-            if (!stream) {
-              throw new Error("Failed to capture stream from canvas");
-            }
-
-            mediaStreamRef.current = stream;
-            outputVideoRef.current.srcObject = stream;
-            outputVideoRef.current.autoplay = true;
-            outputVideoRef.current.play().catch(error => {
-              console.error("Error playing output video:", error);
-              setInitError("Unable to play processed video. Please try a different browser.");
-            });
+          const canvas = canvasRef.current as ExtendedHTMLCanvasElement;
+          let stream;
+          
+          if (canvas.captureStream) {
+            stream = canvas.captureStream(30);
+          } else if (canvas.webkitCaptureStream) {
+            stream = canvas.webkitCaptureStream(30);
+          } else if (canvas.mozCaptureStream) {
+            stream = canvas.mozCaptureStream(30);
           }
+
+          if (!stream) {
+            throw new Error("Failed to capture stream from canvas");
+          }
+
+          mediaStreamRef.current = stream;
+          outputVideoRef.current.srcObject = stream;
+          outputVideoRef.current.play().catch(error => {
+            console.error("Error playing output video:", error);
+            setInitError("Unable to play processed video. Please try a different browser.");
+          });
         } catch (error) {
           console.error("Error capturing stream:", error);
           setInitError("Unable to process video stream. Please try a different browser.");
@@ -255,72 +331,6 @@ const Index = () => {
       };
     }
   };
-
-  useEffect(() => {
-    let cleanup = false;
-
-    const setup = async () => {
-      if (!cleanup) {
-        try {
-          console.log("Starting FaceMesh initialization...");
-          
-          const faceMeshInstance = new FaceMesh({
-            locateFile: (file) => {
-              const baseUrl = "https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619";
-              return `${baseUrl}/${file}`;
-            },
-          });
-
-          console.log("Setting FaceMesh options...");
-          await faceMeshInstance.setOptions({
-            maxNumFaces: 1,
-            refineLandmarks: true,
-            minDetectionConfidence: 0.5,
-            minTrackingConfidence: 0.5
-          });
-
-          console.log("Setting up FaceMesh results handler...");
-          faceMeshInstance.onResults(onResults);
-
-          console.log("Initializing FaceMesh...");
-          try {
-            await faceMeshInstance.initialize();
-            console.log("FaceMesh initialized successfully");
-            faceMeshRef.current = faceMeshInstance;
-          } catch (error) {
-            console.error("Error initializing FaceMesh:", error);
-            setInitError("Failed to initialize face detection. Please refresh the page.");
-          }
-        } catch (error) {
-          console.error("Error during FaceMesh setup:", error);
-          setInitError("Failed to set up face detection. Please refresh and try again.");
-        }
-      }
-    };
-
-    setup();
-
-    return () => {
-      cleanup = true;
-      if (faceMeshRef.current) {
-        faceMeshRef.current.close();
-      }
-      if (mediaStreamRef.current) {
-        mediaStreamRef.current.getTracks().forEach(track => track.stop());
-      }
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
-      }
-      if (audioSourceRef.current) {
-        audioSourceRef.current.disconnect();
-        audioSourceRef.current = null;
-      }
-      if (audioContextRef.current) {
-        audioContextRef.current.close();
-        audioContextRef.current = null;
-      }
-    };
-  }, [toast]);
 
   return (
     <div className="container mx-auto p-4">
