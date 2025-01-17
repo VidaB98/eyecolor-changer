@@ -1,10 +1,12 @@
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
-import { Upload, Download } from "lucide-react";
+import { Upload } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { VideoProcessor } from "@/components/VideoProcessor";
+import { VideoDownloader } from "@/components/VideoDownloader";
 
 const predefinedColors = [
   { name: "Brown", value: "#8B4513" },
@@ -17,222 +19,7 @@ const Index = () => {
   const [selectedColor, setSelectedColor] = useState<string>(predefinedColors[0].value);
   const [isProcessing, setIsProcessing] = useState(false);
   const { toast } = useToast();
-  const faceMeshRef = useRef<any>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
-  const animationFrameRef = useRef<number>();
-  const lastFrameTimeRef = useRef<number>(0);
-  const audioContextRef = useRef<AudioContext | null>(null);
-  const audioSourceRef = useRef<MediaElementAudioSourceNode | null>(null);
-  const targetFPS = 30;
-  const frameInterval = 1000 / targetFPS;
-
-  const handleDownload = () => {
-    if (!outputVideoRef.current || !mediaStreamRef.current || !videoRef.current) return;
-
-    // Create AudioContext only if it doesn't exist
-    if (!audioContextRef.current) {
-      audioContextRef.current = new AudioContext();
-    }
-
-    // Create AudioSource only if it doesn't exist
-    if (!audioSourceRef.current && audioContextRef.current) {
-      audioSourceRef.current = audioContextRef.current.createMediaElementSource(videoRef.current);
-    }
-
-    const audioDestination = audioContextRef.current.createMediaStreamDestination();
-    
-    // Connect the audio source to both the destination and audio context destination
-    if (audioSourceRef.current) {
-      audioSourceRef.current.connect(audioDestination);
-      audioSourceRef.current.connect(audioContextRef.current.destination);
-    }
-
-    const combinedStream = new MediaStream([
-      ...mediaStreamRef.current.getVideoTracks(),
-      ...audioDestination.stream.getAudioTracks()
-    ]);
-
-    const mediaRecorder = new MediaRecorder(combinedStream, {
-      mimeType: 'video/webm;codecs=vp8',
-      videoBitsPerSecond: 8000000
-    });
-    
-    const chunks: BlobPart[] = [];
-
-    mediaRecorder.ondataavailable = (e) => {
-      if (e.data.size > 0) {
-        chunks.push(e.data);
-      }
-    };
-
-    mediaRecorder.onstop = () => {
-      const blob = new Blob(chunks, { type: 'video/webm' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'processed-video.webm';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-
-      toast({
-        title: "Success",
-        description: "Video downloaded successfully with audio",
-      });
-    };
-
-    mediaRecorder.start();
-    
-    // Reset video to beginning and play for recording
-    videoRef.current.currentTime = 0;
-    videoRef.current.play();
-
-    // Stop recording after the video duration
-    setTimeout(() => {
-      mediaRecorder.stop();
-      videoRef.current?.pause();
-    }, videoRef.current.duration * 1000);
-  };
-
-  const isEyeOpen = (landmarks: any, eyePoints: number[]) => {
-    const topY = landmarks[eyePoints[0]].y;
-    const bottomY = landmarks[eyePoints[1]].y;
-    const eyeHeight = Math.abs(topY - bottomY);
-    return eyeHeight;
-  };
-
-  const onResults = (results: any) => {
-    const currentTime = performance.now();
-    const timeSinceLastFrame = currentTime - lastFrameTimeRef.current;
-    
-    if (timeSinceLastFrame < frameInterval) {
-      animationFrameRef.current = requestAnimationFrame(() => processVideo());
-      return;
-    }
-    
-    lastFrameTimeRef.current = currentTime;
-
-    const canvas = canvasRef.current;
-    const video = videoRef.current;
-    if (!canvas || !video || !results.multiFaceLandmarks) {
-      setIsProcessing(false);
-      return;
-    }
-
-    const ctx = canvas.getContext('2d', { 
-      willReadFrequently: true,
-      alpha: false
-    });
-    if (!ctx) {
-      setIsProcessing(false);
-      return;
-    }
-
-    // Match canvas size to video size
-    if (canvas.width !== video.videoWidth || canvas.height !== video.videoHeight) {
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-    }
-
-    ctx.imageSmoothingEnabled = false;
-    ctx.drawImage(video, 0, 0);
-
-    if (results.multiFaceLandmarks) {
-      for (const landmarks of results.multiFaceLandmarks) {
-        const leftEyeVertical = [159, 145];  
-        const rightEyeVertical = [386, 374]; 
-        
-        const leftEyeOpenRatio = isEyeOpen(landmarks, leftEyeVertical);
-        const rightEyeOpenRatio = isEyeOpen(landmarks, rightEyeVertical);
-
-        const leftIrisCenter = 468;
-        const rightIrisCenter = 473;
-        const leftIrisBoundary = [469, 470, 471, 472];
-        const rightIrisBoundary = [474, 475, 476, 477];
-
-        const irisCanvas = document.createElement('canvas');
-        irisCanvas.width = canvas.width;
-        irisCanvas.height = canvas.height;
-        const irisCtx = irisCanvas.getContext('2d', { alpha: true });
-        if (!irisCtx) return;
-
-        irisCtx.fillStyle = selectedColor;
-        irisCtx.strokeStyle = selectedColor;
-
-        const drawIris = (centerPoint: number, boundaryPoints: number[], openRatio: number) => {
-          if (!irisCtx) return;
-          if (openRatio < 0.005) return;
-
-          const centerX = landmarks[centerPoint].x * canvas.width;
-          const centerY = landmarks[centerPoint].y * canvas.height;
-
-          const radii = boundaryPoints.map(point => {
-            const dx = landmarks[point].x * canvas.width - centerX;
-            const dy = landmarks[point].y * canvas.height - centerY;
-            return Math.hypot(dx, dy);
-          });
-          const radius = (radii.reduce((a, b) => a + b, 0) / radii.length) * 0.85;
-
-          const maxOpacity = 0.6;
-          const minOpenRatio = 0.005;
-          const maxOpenRatio = 0.018;
-          const opacity = Math.min(maxOpacity, 
-            (openRatio - minOpenRatio) / (maxOpenRatio - minOpenRatio) * maxOpacity
-          );
-          
-          irisCtx.globalAlpha = opacity;
-          irisCtx.beginPath();
-          irisCtx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
-          irisCtx.fill();
-        };
-
-        drawIris(leftIrisCenter, leftIrisBoundary, leftEyeOpenRatio);
-        drawIris(rightIrisCenter, rightIrisBoundary, rightEyeOpenRatio);
-
-        ctx.globalCompositeOperation = "soft-light";
-        ctx.drawImage(irisCanvas, 0, 0);
-        ctx.globalCompositeOperation = "source-over";
-      }
-    }
-
-    if (outputVideoRef.current && !outputVideoRef.current.srcObject) {
-      const stream = canvas.captureStream(targetFPS);
-      mediaStreamRef.current = stream;
-      outputVideoRef.current.srcObject = stream;
-      outputVideoRef.current.play().catch(console.error);
-    }
-
-    // Only set isProcessing to false if video has ended
-    if (videoRef.current && (videoRef.current.ended || videoRef.current.paused)) {
-      setIsProcessing(false);
-    } else {
-      animationFrameRef.current = requestAnimationFrame(() => processVideo());
-    }
-  };
-
-  const processVideo = async () => {
-    if (!videoRef.current || !faceMeshRef.current) {
-      setIsProcessing(false);
-      return;
-    }
-
-    try {
-      await faceMeshRef.current.send({ image: videoRef.current });
-      if (videoRef.current.paused || videoRef.current.ended) {
-        setIsProcessing(false);
-        return;
-      }
-    } catch (error) {
-      console.error("Error processing video:", error);
-      setIsProcessing(false);
-      toast({
-        title: "Error",
-        description: "Failed to process video",
-        variant: "destructive",
-      });
-    }
-  };
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -255,9 +42,6 @@ const Index = () => {
     if (outputVideoRef.current) {
       outputVideoRef.current.srcObject = null;
     }
-    if (animationFrameRef.current) {
-      cancelAnimationFrame(animationFrameRef.current);
-    }
 
     const videoUrl = URL.createObjectURL(file);
     if (videoRef.current) {
@@ -266,91 +50,10 @@ const Index = () => {
       videoRef.current.onloadeddata = () => {
         if (videoRef.current) {
           videoRef.current.play().catch(console.error);
-          processVideo();
         }
       };
     }
   };
-
-  const initFaceMesh = async () => {
-    try {
-      // Clear any existing instance
-      if (faceMeshRef.current) {
-        await faceMeshRef.current.close();
-        faceMeshRef.current = null;
-      }
-
-      const { FaceMesh } = await import('@mediapipe/face_mesh');
-      
-      // Create a new instance with explicit configuration
-      const faceMesh = new FaceMesh({
-        locateFile: (file) => {
-          return `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619/${file}`;
-        }
-      });
-
-      // Initialize with required configuration
-      await faceMesh.setOptions({
-        maxNumFaces: 1,
-        refineLandmarks: true,
-        minDetectionConfidence: 0.5,
-        minTrackingConfidence: 0.5
-      });
-
-      // Ensure initialization is complete before setting up results handler
-      await faceMesh.initialize();
-      
-      // Set up results handler after initialization
-      faceMesh.onResults(onResults);
-      
-      // Store the initialized instance
-      faceMeshRef.current = faceMesh;
-
-      console.log("FaceMesh initialized successfully");
-    } catch (error) {
-      console.error("Error initializing FaceMesh:", error);
-      // Wait a bit and retry initialization
-      setTimeout(() => {
-        if (!faceMeshRef.current) {
-          initFaceMesh();
-        }
-      }, 1000);
-    }
-  };
-
-  useEffect(() => {
-    let mounted = true;
-
-    const init = async () => {
-      if (mounted) {
-        await initFaceMesh();
-      }
-    };
-
-    init();
-
-    return () => {
-      mounted = false;
-      if (mediaStreamRef.current) {
-        mediaStreamRef.current.getTracks().forEach(track => track.stop());
-      }
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
-      }
-      if (audioSourceRef.current) {
-        audioSourceRef.current.disconnect();
-        audioSourceRef.current = null;
-      }
-      if (audioContextRef.current) {
-        audioContextRef.current.close();
-        audioContextRef.current = null;
-      }
-      if (faceMeshRef.current) {
-        faceMeshRef.current.close();
-        faceMeshRef.current = null;
-      }
-    };
-  }, []);
 
   return (
     <div className="container mx-auto p-4">
@@ -387,7 +90,6 @@ const Index = () => {
                   controls
                   className="w-full rounded-lg"
                   playsInline
-                  onPlay={() => processVideo()}
                 />
               </div>
               <div className="space-y-2">
@@ -409,11 +111,7 @@ const Index = () => {
             <Button
               onClick={() => {
                 if (videoRef.current && videoRef.current.paused) {
-                  videoRef.current.play().then(() => {
-                    processVideo();
-                  }).catch(console.error);
-                } else {
-                  processVideo();
+                  videoRef.current.play().catch(console.error);
                 }
               }}
               disabled={isProcessing || !videoRef.current?.src}
@@ -422,18 +120,23 @@ const Index = () => {
               {isProcessing ? "Processing..." : "Change Eye Color"}
             </Button>
             
-            <Button
-              onClick={handleDownload}
-              disabled={!canvasRef.current}
-              variant="outline"
-              className="flex gap-2"
-            >
-              <Download className="size-4" />
-              Download
-            </Button>
+            <VideoDownloader
+              videoRef={videoRef}
+              outputVideoRef={outputVideoRef}
+              mediaStreamRef={mediaStreamRef}
+            />
           </div>
         </div>
       </Card>
+
+      <VideoProcessor
+        videoRef={videoRef}
+        outputVideoRef={outputVideoRef}
+        canvasRef={canvasRef}
+        selectedColor={selectedColor}
+        setIsProcessing={setIsProcessing}
+        mediaStreamRef={mediaStreamRef}
+      />
     </div>
   );
 };
