@@ -29,7 +29,7 @@ const predefinedColors = [
 const Index = () => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [selectedColor, setSelectedColor] = useState("#ff0000");
+  const [selectedColor, setSelectedColor] = useState(predefinedColors[0].value);
   const [isProcessing, setIsProcessing] = useState(false);
   const { toast } = useToast();
   const faceMeshRef = useRef<FaceMesh | null>(null);
@@ -181,6 +181,9 @@ const Index = () => {
 
   const handleColorChange = (value: string) => {
     setSelectedColor(value);
+    if (videoRef.current && !videoRef.current.paused) {
+      processVideo();
+    }
   };
 
   return (
@@ -212,9 +215,17 @@ const Index = () => {
           <div className="space-y-2">
             <Label htmlFor="color-picker">Choose Eye Color</Label>
             <div className="flex gap-4">
-              <Select onValueChange={handleColorChange} defaultValue={selectedColor}>
+              <Select onValueChange={handleColorChange} value={selectedColor}>
                 <SelectTrigger className="w-[180px]">
-                  <SelectValue placeholder="Select color" />
+                  <SelectValue>
+                    <div className="flex items-center gap-2">
+                      <div
+                        className="w-4 h-4 rounded-full"
+                        style={{ backgroundColor: selectedColor }}
+                      />
+                      {predefinedColors.find(c => c.value === selectedColor)?.name || 'Custom'}
+                    </div>
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {predefinedColors.map((color) => (
@@ -234,7 +245,7 @@ const Index = () => {
                 id="color-picker"
                 type="color"
                 value={selectedColor}
-                onChange={(e) => setSelectedColor(e.target.value)}
+                onChange={(e) => handleColorChange(e.target.value)}
                 className="h-10 w-20"
               />
             </div>
