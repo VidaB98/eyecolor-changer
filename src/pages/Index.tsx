@@ -114,8 +114,8 @@ const Index = () => {
 
         // Set up the drawing style for iris only
         ctx.fillStyle = selectedColor;
-        ctx.globalCompositeOperation = "source-over";
-        ctx.globalAlpha = 0.45; // Reduced opacity for more natural look
+        ctx.globalCompositeOperation = "overlay";
+        ctx.globalAlpha = 0.6; // Increased opacity for more vibrant but natural look
 
         const getIrisCenter = (points: any[]) => {
           const x = points.reduce((sum, p) => sum + p.x, 0) / points.length;
