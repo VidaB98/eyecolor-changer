@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
-import { Upload } from "lucide-react";
+import { Upload, Download } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { FaceMesh } from "@mediapipe/face_mesh";
 
@@ -24,6 +24,49 @@ const Index = () => {
   const lastFrameTimeRef = useRef<number>(0);
   const targetFPS = 60;
   const frameInterval = 1000 / targetFPS;
+
+  const handleDownload = () => {
+    if (!canvasRef.current) return;
+
+    // Create a temporary canvas to record the video
+    const tempCanvas = document.createElement('canvas');
+    const tempCtx = tempCanvas.getContext('2d');
+    if (!tempCtx) return;
+
+    // Set canvas dimensions to match the video
+    tempCanvas.width = canvasRef.current.width;
+    tempCanvas.height = canvasRef.current.height;
+
+    // Draw the current frame
+    tempCtx.drawImage(canvasRef.current, 0, 0);
+
+    // Convert the canvas to a blob
+    tempCanvas.toBlob((blob) => {
+      if (!blob) {
+        toast({
+          title: "Error",
+          description: "Failed to create video file",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Create download link
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'processed-video.webm';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      toast({
+        title: "Success",
+        description: "Video downloaded successfully",
+      });
+    }, 'image/webm');
+  };
 
   useEffect(() => {
     const initFaceMesh = async () => {
@@ -266,21 +309,33 @@ const Index = () => {
             <canvas ref={canvasRef} className="hidden" />
           </div>
 
-          <Button
-            onClick={() => {
-              if (videoRef.current && videoRef.current.paused) {
-                videoRef.current.play().then(() => {
+          <div className="flex gap-4">
+            <Button
+              onClick={() => {
+                if (videoRef.current && videoRef.current.paused) {
+                  videoRef.current.play().then(() => {
+                    processVideo();
+                  }).catch(console.error);
+                } else {
                   processVideo();
-                }).catch(console.error);
-              } else {
-                processVideo();
-              }
-            }}
-            disabled={isProcessing || !videoRef.current?.src}
-            className="w-full"
-          >
-            {isProcessing ? "Processing..." : "Change Eye Color"}
-          </Button>
+                }
+              }}
+              disabled={isProcessing || !videoRef.current?.src}
+              className="flex-1"
+            >
+              {isProcessing ? "Processing..." : "Change Eye Color"}
+            </Button>
+            
+            <Button
+              onClick={handleDownload}
+              disabled={!outputVideoRef.current?.srcObject}
+              variant="secondary"
+              className="flex gap-2"
+            >
+              <Download className="size-4" />
+              Download
+            </Button>
+          </div>
         </div>
       </Card>
     </div>
