@@ -37,6 +37,7 @@ const Index = () => {
   const { toast } = useToast();
   const faceMeshRef = useRef<faceMesh.FaceMesh | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
+  const animationFrameRef = useRef<number>();
 
   useEffect(() => {
     const initFaceMesh = async () => {
@@ -65,6 +66,9 @@ const Index = () => {
     return () => {
       if (mediaStreamRef.current) {
         mediaStreamRef.current.getTracks().forEach(track => track.stop());
+      }
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
       }
     };
   }, []);
@@ -146,12 +150,14 @@ const Index = () => {
 
     ctx.restore();
 
-    // Stream the processed frame to the output video
-    if (outputVideoRef.current && !outputVideoRef.current.srcObject) {
-      const stream = canvas.captureStream();
-      mediaStreamRef.current = stream;
-      outputVideoRef.current.srcObject = stream;
-      outputVideoRef.current.play();
+    // Update the stream for the output video
+    if (outputVideoRef.current) {
+      if (!outputVideoRef.current.srcObject) {
+        const stream = canvas.captureStream(30); // 30 FPS
+        mediaStreamRef.current = stream;
+        outputVideoRef.current.srcObject = stream;
+        outputVideoRef.current.play().catch(console.error);
+      }
     }
   };
 
@@ -165,7 +171,7 @@ const Index = () => {
         setIsProcessing(false);
         return;
       }
-      requestAnimationFrame(processVideo);
+      animationFrameRef.current = requestAnimationFrame(processVideo);
     } catch (error) {
       console.error("Error processing video:", error);
       setIsProcessing(false);
@@ -190,17 +196,21 @@ const Index = () => {
       return;
     }
 
-    // Stop previous stream if exists
+    // Clean up previous resources
     if (mediaStreamRef.current) {
       mediaStreamRef.current.getTracks().forEach(track => track.stop());
     }
     if (outputVideoRef.current) {
       outputVideoRef.current.srcObject = null;
     }
+    if (animationFrameRef.current) {
+      cancelAnimationFrame(animationFrameRef.current);
+    }
 
     const videoUrl = URL.createObjectURL(file);
     if (videoRef.current) {
       videoRef.current.src = videoUrl;
+      videoRef.current.load(); // Ensure the video is properly loaded
     }
   };
 
