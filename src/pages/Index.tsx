@@ -246,7 +246,7 @@ const Index = () => {
               <Input
                 id="color-picker"
                 type="color"
-                value={selectedColor || "#000000"}
+                value={selectedColor}
                 onChange={(e) => handleColorChange(e.target.value)}
                 className="h-10 w-20"
               />
