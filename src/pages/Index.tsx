@@ -269,7 +269,7 @@ const Index = () => {
   return (
     <div className="container mx-auto p-4">
       <Card className="p-6 max-w-2xl mx-auto">
-        <h1 className="text-2xl font-bold mb-6">Change your eye color to brown</h1>
+        <h1 className="text-2xl font-bold mb-6">Change eye color to brown</h1>
 
         <div className="space-y-6">
           <div>
