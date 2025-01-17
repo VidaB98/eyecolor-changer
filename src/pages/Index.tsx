@@ -32,7 +32,7 @@ const Index = () => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const outputVideoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [selectedColor, setSelectedColor] = useState<string>("#8B4513"); // Set Brown as default
+  const [selectedColor, setSelectedColor] = useState<string>("#8B4513");
   const [isProcessing, setIsProcessing] = useState(false);
   const { toast } = useToast();
   const faceMeshRef = useRef<faceMesh.FaceMesh | null>(null);
@@ -153,7 +153,7 @@ const Index = () => {
     // Update the stream for the output video
     if (outputVideoRef.current) {
       if (!outputVideoRef.current.srcObject) {
-        const stream = canvas.captureStream(30); // 30 FPS
+        const stream = canvas.captureStream();
         mediaStreamRef.current = stream;
         outputVideoRef.current.srcObject = stream;
         outputVideoRef.current.play().catch(console.error);
@@ -210,7 +210,12 @@ const Index = () => {
     const videoUrl = URL.createObjectURL(file);
     if (videoRef.current) {
       videoRef.current.src = videoUrl;
-      videoRef.current.load(); // Ensure the video is properly loaded
+      videoRef.current.load();
+      videoRef.current.onloadeddata = () => {
+        if (videoRef.current) {
+          videoRef.current.play().catch(console.error);
+        }
+      };
     }
   };
 
@@ -306,6 +311,7 @@ const Index = () => {
                   className="w-full rounded-lg"
                   playsInline
                   autoPlay
+                  muted
                 />
               </div>
             </div>
