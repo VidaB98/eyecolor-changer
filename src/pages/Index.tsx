@@ -100,7 +100,7 @@ const Index = () => {
         ctx.fillStyle = selectedColor;
         ctx.strokeStyle = selectedColor;
         ctx.globalCompositeOperation = "soft-light";
-        ctx.globalAlpha = 0.4;
+        ctx.globalAlpha = 0.5;
 
         const drawIris = (points: any[], isOpen: boolean) => {
           if (!isOpen) return;
