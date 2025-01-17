@@ -56,7 +56,7 @@ const Index = () => {
         
         const stream = canvas.captureStream(30); // 30 FPS
         const mediaRecorder2 = new MediaRecorder(stream, {
-          mimeType: 'video/mp4'
+          mimeType: 'video/webm;codecs=vp9' // Changed from video/mp4 to video/webm
         });
         
         const mp4Chunks: Blob[] = [];
@@ -67,11 +67,11 @@ const Index = () => {
         };
 
         mediaRecorder2.onstop = () => {
-          const mp4Blob = new Blob(mp4Chunks, { type: 'video/mp4' });
-          const url = URL.createObjectURL(mp4Blob);
+          const finalBlob = new Blob(mp4Chunks, { type: 'video/webm' }); // Changed from video/mp4 to video/webm
+          const url = URL.createObjectURL(finalBlob);
           const a = document.createElement('a');
           a.href = url;
-          a.download = 'processed-video.mp4';
+          a.download = 'processed-video.webm'; // Changed extension to .webm
           document.body.appendChild(a);
           a.click();
           document.body.removeChild(a);
