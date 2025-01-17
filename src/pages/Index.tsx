@@ -87,32 +87,29 @@ const Index = () => {
         const leftEyeOpen = isEyeOpen(landmarks, leftEyeVertical);
         const rightEyeOpen = isEyeOpen(landmarks, rightEyeVertical);
 
-        // Enhanced iris points for better tracking
         const leftIrisPoints = [
-          474, 475, 476, 477, // Core iris points
-          469, 470, 471, 472  // Additional points for better tracking
+          474, 475, 476, 477,
+          469, 470, 471, 472
         ].map(index => landmarks[index]);
 
         const rightIrisPoints = [
-          469, 470, 471, 472, // Core iris points
-          474, 475, 476, 477  // Additional points for better tracking
+          469, 470, 471, 472,
+          474, 475, 476, 477
         ].map(index => landmarks[index]);
 
         ctx.fillStyle = selectedColor;
         ctx.strokeStyle = selectedColor;
-        ctx.globalCompositeOperation = "multiply";
-        ctx.globalAlpha = 0.5;
+        ctx.globalCompositeOperation = "soft-light";
+        ctx.globalAlpha = 0.4;
 
         const drawIris = (points: any[], isOpen: boolean) => {
           if (!isOpen) return;
           
-          // Enhanced center calculation using weighted average
           const center = {
             x: points.slice(0, 4).reduce((sum, p) => sum + p.x, 0) / 4,
             y: points.slice(0, 4).reduce((sum, p) => sum + p.y, 0) / 4
           };
 
-          // Dynamic radius calculation based on face size and distance
           const faceWidth = Math.abs(landmarks[234].x - landmarks[454].x) * canvas.width;
           const distanceScale = Math.max(0.5, Math.min(1.5, 800 / faceWidth));
           
