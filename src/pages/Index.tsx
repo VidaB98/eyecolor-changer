@@ -97,7 +97,6 @@ const Index = () => {
         const leftEyeOpen = isEyeOpen(landmarks, leftEyeVertical);
         const rightEyeOpen = isEyeOpen(landmarks, rightEyeVertical);
 
-        // These points specifically target the iris
         const leftIrisPoints = [474, 475, 476, 477].map(
           (index) => landmarks[index]
         );
@@ -106,20 +105,31 @@ const Index = () => {
           (index) => landmarks[index]
         );
 
-        // Enhanced color application
+        // Set the selected color
         ctx.fillStyle = selectedColor;
         ctx.strokeStyle = selectedColor;
-        
-        // Apply different blend modes based on color
-        if (selectedColor === "#000000") {
-          ctx.globalCompositeOperation = "multiply";
-          ctx.globalAlpha = 0.5;
-        } else if (selectedColor === "#8B4513") {
-          ctx.globalCompositeOperation = "overlay";
-          ctx.globalAlpha = 0.6;
-        } else {
-          ctx.globalCompositeOperation = "overlay";
-          ctx.globalAlpha = 0.7;
+
+        // Apply specific settings for each color
+        switch (selectedColor) {
+          case "#000000": // Black
+            ctx.globalCompositeOperation = "source-over";
+            ctx.globalAlpha = 0.75;
+            break;
+          case "#8B4513": // Brown
+            ctx.globalCompositeOperation = "multiply";
+            ctx.globalAlpha = 0.8;
+            break;
+          case "#0EA5E9": // Blue
+            ctx.globalCompositeOperation = "overlay";
+            ctx.globalAlpha = 0.85;
+            break;
+          case "#22c55e": // Green
+            ctx.globalCompositeOperation = "overlay";
+            ctx.globalAlpha = 0.8;
+            break;
+          default:
+            ctx.globalCompositeOperation = "source-over";
+            ctx.globalAlpha = 0.75;
         }
 
         const drawIris = (points: any[], isOpen: boolean) => {
