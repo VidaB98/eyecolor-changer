@@ -265,13 +265,16 @@ const Index = () => {
 
   const initFaceMesh = async () => {
     try {
+      console.log("Creating FaceMesh instance...");
       const faceMesh = new FaceMesh({
         locateFile: (file) => {
-          // Use specific version and full file path
-          return `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619/${file}`;
+          console.log(`Loading MediaPipe file: ${file}`);
+          // Ensure we're loading from the official MediaPipe CDN with explicit versioning
+          return `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619/` + file;
         }
       });
 
+      console.log("Setting FaceMesh options...");
       await faceMesh.setOptions({
         maxNumFaces: 1,
         refineLandmarks: true,
@@ -279,35 +282,55 @@ const Index = () => {
         minTrackingConfidence: 0.5
       });
 
+      console.log("Setting up onResults handler...");
       faceMesh.onResults(onResults);
-      
+
+      console.log("Initializing FaceMesh...");
       try {
-        console.log("Initializing face mesh...");
+        // Load required assets before initialization
+        await Promise.all([
+          fetch('https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619/face_mesh_solution_packed_assets.data'),
+          fetch('https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619/face_mesh_solution_simd_wasm_bin.js'),
+          fetch('https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619/face_mesh_solution_wasm_bin.js')
+        ]);
+
         await faceMesh.initialize();
-        console.log("Face mesh initialized successfully");
+        console.log("FaceMesh initialized successfully!");
         faceMeshRef.current = faceMesh;
       } catch (initError) {
         console.error("Error during face mesh initialization:", initError);
         toast({
           title: "Face Detection Error",
-          description: "Failed to initialize face detection. Please try refreshing the page.",
+          description: "Failed to initialize face detection. Please ensure you're using a modern browser and try refreshing the page.",
           variant: "destructive",
         });
       }
     } catch (error) {
-      console.error("Error creating FaceMesh:", error);
+      console.error("Error creating or setting up FaceMesh:", error);
       toast({
-        title: "Error",
-        description: "Failed to load face detection resources. Please check your internet connection and try again.",
+        title: "Resource Loading Error",
+        description: "Failed to load face detection resources. Please check your internet connection and ensure you're using a supported browser.",
         variant: "destructive",
       });
     }
   };
 
   useEffect(() => {
-    initFaceMesh();
+    let cleanup = false;
+
+    const setup = async () => {
+      if (!cleanup) {
+        await initFaceMesh();
+      }
+    };
+
+    setup();
 
     return () => {
+      cleanup = true;
+      if (faceMeshRef.current) {
+        faceMeshRef.current.close();
+      }
       if (mediaStreamRef.current) {
         mediaStreamRef.current.getTracks().forEach(track => track.stop());
       }
