@@ -87,60 +87,43 @@ const Index = () => {
         const leftEyeOpen = isEyeOpen(landmarks, leftEyeVertical);
         const rightEyeOpen = isEyeOpen(landmarks, rightEyeVertical);
 
-        const leftIrisPoints = [
-          474, 475, 476, 477,
-          469, 470, 471, 472
-        ].map(index => landmarks[index]);
-
-        const rightIrisPoints = [
-          469, 470, 471, 472,
-          474, 475, 476, 477
-        ].map(index => landmarks[index]);
+        // Define eye contour points
+        const leftEyeContour = [
+          33, 246, 161, 160, 159, 158, 157, 173, 133, 155, 154, 153, 145, 144, 163, 7
+        ];
+        const rightEyeContour = [
+          362, 398, 384, 385, 386, 387, 388, 466, 263, 249, 390, 373, 374, 380, 381, 382
+        ];
 
         ctx.fillStyle = selectedColor;
         ctx.strokeStyle = selectedColor;
         ctx.globalCompositeOperation = "soft-light";
         ctx.globalAlpha = 0.5;
 
-        const drawIris = (points: any[], isOpen: boolean) => {
+        const drawEyeShape = (points: number[], isOpen: boolean) => {
           if (!isOpen) return;
-          
-          const center = {
-            x: points.slice(0, 4).reduce((sum, p) => sum + p.x, 0) / 4,
-            y: points.slice(0, 4).reduce((sum, p) => sum + p.y, 0) / 4
-          };
-
-          const faceWidth = Math.abs(landmarks[234].x - landmarks[454].x) * canvas.width;
-          const distanceScale = Math.max(0.5, Math.min(1.5, 800 / faceWidth));
-          
-          const baseRadius = Math.max(
-            ...points.slice(0, 4).map((p) =>
-              Math.sqrt(
-                Math.pow((p.x - center.x) * canvas.width, 2) +
-                Math.pow((p.y - center.y) * canvas.height, 2)
-              )
-            )
-          );
-
-          const adjustedRadius = baseRadius * distanceScale * 1.2;
 
           ctx.beginPath();
-          ctx.arc(
-            center.x * canvas.width,
-            center.y * canvas.height,
-            adjustedRadius,
-            0,
-            2 * Math.PI
-          );
+          points.forEach((point, index) => {
+            const x = landmarks[point].x * canvas.width;
+            const y = landmarks[point].y * canvas.height;
+            
+            if (index === 0) {
+              ctx.moveTo(x, y);
+            } else {
+              ctx.lineTo(x, y);
+            }
+          });
+          ctx.closePath();
           ctx.fill();
         };
 
         if (leftEyeOpen) {
-          drawIris(leftIrisPoints, leftEyeOpen);
+          drawEyeShape(leftEyeContour, leftEyeOpen);
         }
 
         if (rightEyeOpen) {
-          drawIris(rightIrisPoints, rightEyeOpen);
+          drawEyeShape(rightEyeContour, rightEyeOpen);
         }
       }
     }
