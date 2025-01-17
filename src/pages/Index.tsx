@@ -42,7 +42,7 @@ const Index = () => {
     if (!outputVideoRef.current || !mediaStreamRef.current || !videoRef.current) return;
 
     if (!audioContextRef.current) {
-      audioContextRef.current = new AudioContext();
+      audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
     }
 
     if (!audioSourceRef.current && audioContextRef.current) {
@@ -154,10 +154,12 @@ const Index = () => {
         if (!outputVideoRef.current.srcObject) {
           let stream;
           try {
+            // Try standard method first
             stream = canvas.captureStream(30);
           } catch (e) {
+            // Fallback for Safari and other browsers
             // @ts-ignore: Webkit prefix
-            stream = canvas.captureStream?.(30) || canvas.webkitCaptureStream?.(30);
+            stream = canvas.captureStream?.(30) || canvas.webkitCaptureStream?.(30) || canvas.mozCaptureStream?.(30);
           }
 
           if (!stream) {
