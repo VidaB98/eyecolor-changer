@@ -38,10 +38,10 @@ const Index = () => {
       await faceMeshRef.current.initialize();
 
       faceMeshRef.current.setOptions({
-        maxNumFaces: 1, // Reduced to focus on one face for better performance
+        maxNumFaces: 1,
         refineLandmarks: true,
-        minDetectionConfidence: 0.5, // Increased for more stable detection
-        minTrackingConfidence: 0.5, // Increased for more stable tracking
+        minDetectionConfidence: 0.5,
+        minTrackingConfidence: 0.5,
       });
 
       faceMeshRef.current.onResults(onResults);
@@ -60,10 +60,13 @@ const Index = () => {
   }, []);
 
   const isEyeOpen = (landmarks: any, eyePoints: number[]) => {
+    // Calculate vertical distance between top and bottom eye points
     const topY = landmarks[eyePoints[0]].y;
     const bottomY = landmarks[eyePoints[1]].y;
     const eyeHeight = Math.abs(topY - bottomY);
-    return eyeHeight > 0.015;
+    
+    // Threshold for determining if eye is open (adjusted for more accuracy)
+    return eyeHeight > 0.018; // Increased threshold for more accurate detection
   };
 
   const onResults = (results: any) => {
@@ -71,7 +74,7 @@ const Index = () => {
     const timeSinceLastFrame = currentTime - lastFrameTimeRef.current;
     
     if (timeSinceLastFrame < frameInterval) {
-      return; // Skip frame if not enough time has passed
+      return;
     }
     
     lastFrameTimeRef.current = currentTime;
@@ -92,8 +95,9 @@ const Index = () => {
 
     if (results.multiFaceLandmarks) {
       for (const landmarks of results.multiFaceLandmarks) {
-        const leftEyeVertical = [159, 145];
-        const rightEyeVertical = [386, 374];
+        // Eye state detection points
+        const leftEyeVertical = [159, 145];  // Top and bottom points of left eye
+        const rightEyeVertical = [386, 374]; // Top and bottom points of right eye
         
         const leftEyeOpen = isEyeOpen(landmarks, leftEyeVertical);
         const rightEyeOpen = isEyeOpen(landmarks, rightEyeVertical);
@@ -109,12 +113,12 @@ const Index = () => {
         ctx.globalAlpha = 0.7;
 
         const drawIris = (centerPoint: number, boundaryPoints: number[], isOpen: boolean) => {
-          if (!isOpen) return;
+          if (!isOpen) return; // Skip drawing if eye is closed
 
           const centerX = landmarks[centerPoint].x * canvas.width;
           const centerY = landmarks[centerPoint].y * canvas.height;
 
-          // Calculate average radius using all boundary points with smoothing
+          // Calculate average radius using boundary points
           const radii = boundaryPoints.map(point => {
             const dx = landmarks[point].x * canvas.width - centerX;
             const dy = landmarks[point].y * canvas.height - centerY;
@@ -122,11 +126,13 @@ const Index = () => {
           });
           const radius = radii.reduce((a, b) => a + b, 0) / radii.length;
 
+          // Draw iris only when eye is open
           ctx.beginPath();
           ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
           ctx.fill();
         };
 
+        // Only draw iris if the respective eye is open
         if (leftEyeOpen) {
           drawIris(leftIrisCenter, leftIrisBoundary, leftEyeOpen);
         }
