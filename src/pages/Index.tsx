@@ -26,8 +26,27 @@ const Index = () => {
   const frameInterval = 1000 / targetFPS;
   const [isRecording, setIsRecording] = useState(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const [recordedBlob, setRecordedBlob] = useState<Blob | null>(null);
 
   const handleDownload = () => {
+    if (recordedBlob) {
+      const url = URL.createObjectURL(recordedBlob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'video.webm';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      toast({
+        title: "Success",
+        description: "Video downloaded successfully",
+      });
+    }
+  };
+
+  const startRecording = () => {
     if (!canvasRef.current) return;
 
     const recordedChunks: Blob[] = [];
@@ -47,23 +66,10 @@ const Index = () => {
       const blob = new Blob(recordedChunks, { 
         type: 'video/webm;codecs=vp8,opus'
       });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'video.webm';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-
-      toast({
-        title: "Success",
-        description: "Video downloaded successfully",
-      });
+      setRecordedBlob(blob);
       setIsRecording(false);
     };
 
-    // Start recording
     mediaRecorderRef.current.start(1000); // Save data every second
     setIsRecording(true);
   };
@@ -326,25 +332,34 @@ const Index = () => {
               {isProcessing ? "Processing..." : "Change Eye Color"}
             </Button>
             
-            {!isRecording ? (
+            <div className="flex gap-2">
+              {!isRecording ? (
+                <Button
+                  onClick={startRecording}
+                  disabled={!outputVideoRef.current?.srcObject}
+                  variant="secondary"
+                >
+                  Start Recording
+                </Button>
+              ) : (
+                <Button
+                  onClick={stopRecording}
+                  variant="destructive"
+                >
+                  Stop Recording
+                </Button>
+              )}
+              
               <Button
                 onClick={handleDownload}
-                disabled={!outputVideoRef.current?.srcObject}
-                variant="secondary"
+                disabled={!recordedBlob}
+                variant="outline"
                 className="flex gap-2"
               >
                 <Download className="size-4" />
-                Start Recording
+                Download
               </Button>
-            ) : (
-              <Button
-                onClick={stopRecording}
-                variant="destructive"
-                className="flex gap-2"
-              >
-                Stop Recording
-              </Button>
-            )}
+            </div>
           </div>
         </div>
       </Card>
