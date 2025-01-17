@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Upload } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import * as faceMesh from "@mediapipe/face_mesh";
+import { FaceMesh } from "@mediapipe/face_mesh";
 
 const predefinedColors = [
   { name: "Brown", value: "#8B4513" },
@@ -18,7 +18,7 @@ const Index = () => {
   const [selectedColor, setSelectedColor] = useState<string>(predefinedColors[0].value);
   const [isProcessing, setIsProcessing] = useState(false);
   const { toast } = useToast();
-  const faceMeshRef = useRef<faceMesh.FaceMesh | null>(null);
+  const faceMeshRef = useRef<FaceMesh | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const animationFrameRef = useRef<number>();
 
@@ -26,23 +26,22 @@ const Index = () => {
     const initFaceMesh = async () => {
       if (typeof window === 'undefined') return;
       
-      const faceMeshInstance = new faceMesh.FaceMesh({
+      faceMeshRef.current = new FaceMesh({
         locateFile: (file) => {
           return `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619/${file}`;
         },
       });
 
-      await faceMeshInstance.initialize();
+      await faceMeshRef.current.initialize();
 
-      faceMeshInstance.setOptions({
-        maxNumFaces: 5, // Increased from 1 to detect multiple faces
+      faceMeshRef.current.setOptions({
+        maxNumFaces: 5,
         refineLandmarks: true,
-        minDetectionConfidence: 0.2, // Lowered from 0.5 for better distance detection
-        minTrackingConfidence: 0.2, // Lowered from 0.5 for better tracking
+        minDetectionConfidence: 0.2,
+        minTrackingConfidence: 0.2,
       });
 
-      faceMeshInstance.onResults(onResults);
-      faceMeshRef.current = faceMeshInstance;
+      faceMeshRef.current.onResults(onResults);
     };
 
     initFaceMesh();
@@ -61,7 +60,7 @@ const Index = () => {
     const topY = landmarks[eyePoints[0]].y;
     const bottomY = landmarks[eyePoints[1]].y;
     const eyeHeight = Math.abs(topY - bottomY);
-    return eyeHeight > 0.015; // Lowered threshold for better detection at angles
+    return eyeHeight > 0.015;
   };
 
   const onResults = (results: any) => {
@@ -87,7 +86,6 @@ const Index = () => {
         const leftEyeOpen = isEyeOpen(landmarks, leftEyeVertical);
         const rightEyeOpen = isEyeOpen(landmarks, rightEyeVertical);
 
-        // Define eye contour points
         const leftEyeContour = [
           33, 246, 161, 160, 159, 158, 157, 173, 133, 155, 154, 153, 145, 144, 163, 7
         ];
