@@ -5,7 +5,6 @@ import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Upload, Download } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { FaceMesh } from "@mediapipe/face_mesh";
 
 const predefinedColors = [
   { name: "Brown", value: "#8B4513" },
@@ -18,13 +17,13 @@ const Index = () => {
   const [selectedColor, setSelectedColor] = useState<string>(predefinedColors[0].value);
   const [isProcessing, setIsProcessing] = useState(false);
   const { toast } = useToast();
-  const faceMeshRef = useRef<FaceMesh | null>(null);
+  const faceMeshRef = useRef<any>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const animationFrameRef = useRef<number>();
   const lastFrameTimeRef = useRef<number>(0);
   const audioContextRef = useRef<AudioContext | null>(null);
   const audioSourceRef = useRef<MediaElementAudioSourceNode | null>(null);
-  const targetFPS = 30; // Reduced from 60 to ensure smoother processing
+  const targetFPS = 30;
   const frameInterval = 1000 / targetFPS;
 
   const handleDownload = () => {
@@ -224,6 +223,7 @@ const Index = () => {
         setIsProcessing(false);
         return;
       }
+      animationFrameRef.current = requestAnimationFrame(() => processVideo());
     } catch (error) {
       console.error("Error processing video:", error);
       setIsProcessing(false);
@@ -275,9 +275,12 @@ const Index = () => {
 
   const initFaceMesh = async () => {
     try {
+      // First, dynamically import the FaceMesh class
+      const { FaceMesh } = await import('@mediapipe/face_mesh');
+      
       const faceMesh = new FaceMesh({
         locateFile: (file) => {
-          return `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`;
+          return `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619/${file}`;
         }
       });
 
@@ -312,7 +315,6 @@ const Index = () => {
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
       }
-      // Clean up audio context and source
       if (audioSourceRef.current) {
         audioSourceRef.current.disconnect();
         audioSourceRef.current = null;
@@ -322,7 +324,7 @@ const Index = () => {
         audioContextRef.current = null;
       }
     };
-  }, [toast]);
+  }, []);
 
   return (
     <div className="container mx-auto p-4">
