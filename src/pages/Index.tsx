@@ -106,58 +106,56 @@ const Index = () => {
           (index) => landmarks[index]
         );
 
-        // Set up the drawing style for iris only
+        // Enhanced color application
         ctx.fillStyle = selectedColor;
-        ctx.globalCompositeOperation = "overlay";
-        ctx.globalAlpha = 0.6; // Increased opacity for more vibrant but natural look
+        ctx.strokeStyle = selectedColor;
+        
+        // Apply different blend modes based on color
+        if (selectedColor === "#000000") {
+          ctx.globalCompositeOperation = "multiply";
+          ctx.globalAlpha = 0.5;
+        } else if (selectedColor === "#8B4513") {
+          ctx.globalCompositeOperation = "overlay";
+          ctx.globalAlpha = 0.6;
+        } else {
+          ctx.globalCompositeOperation = "overlay";
+          ctx.globalAlpha = 0.7;
+        }
 
-        const getIrisCenter = (points: any[]) => {
-          const x = points.reduce((sum, p) => sum + p.x, 0) / points.length;
-          const y = points.reduce((sum, p) => sum + p.y, 0) / points.length;
-          return { x, y };
-        };
+        const drawIris = (points: any[], isOpen: boolean) => {
+          if (!isOpen) return;
+          
+          const center = {
+            x: points.reduce((sum, p) => sum + p.x, 0) / points.length,
+            y: points.reduce((sum, p) => sum + p.y, 0) / points.length
+          };
 
-        const getIrisRadius = (
-          points: any[],
-          center: { x: number; y: number }
-        ) => {
-          // Slightly reduce the radius to ensure we only color the iris
-          return Math.max(
+          const radius = Math.max(
             ...points.map((p) =>
               Math.sqrt(
                 Math.pow((p.x - center.x) * canvas.width, 2) +
-                  Math.pow((p.y - center.y) * canvas.height, 2)
+                Math.pow((p.y - center.y) * canvas.height, 2)
               )
             )
-          ) * 0.85; // Reduce radius by 15% to focus on iris
+          ) * 0.85;
+
+          ctx.beginPath();
+          ctx.arc(
+            center.x * canvas.width,
+            center.y * canvas.height,
+            radius,
+            0,
+            2 * Math.PI
+          );
+          ctx.fill();
         };
 
         if (leftEyeOpen) {
-          const leftCenter = getIrisCenter(leftIrisPoints);
-          const leftRadius = getIrisRadius(leftIrisPoints, leftCenter);
-          ctx.beginPath();
-          ctx.arc(
-            leftCenter.x * canvas.width,
-            leftCenter.y * canvas.height,
-            leftRadius,
-            0,
-            2 * Math.PI
-          );
-          ctx.fill();
+          drawIris(leftIrisPoints, leftEyeOpen);
         }
 
         if (rightEyeOpen) {
-          const rightCenter = getIrisCenter(rightIrisPoints);
-          const rightRadius = getIrisRadius(rightIrisPoints, rightCenter);
-          ctx.beginPath();
-          ctx.arc(
-            rightCenter.x * canvas.width,
-            rightCenter.y * canvas.height,
-            rightRadius,
-            0,
-            2 * Math.PI
-          );
-          ctx.fill();
+          drawIris(rightIrisPoints, rightEyeOpen);
         }
       }
     }
