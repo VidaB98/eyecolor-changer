@@ -284,9 +284,9 @@ const Index = () => {
       
       // Define CDN bases with version and fallbacks
       const cdnBases = [
-        'https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619/',
-        'https://unpkg.com/@mediapipe/face_mesh@0.4.1633559619/',
-        'https://www.gstatic.com/mediapipe/face_mesh/'
+        'https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619',
+        'https://unpkg.com/@mediapipe/face_mesh@0.4.1633559619',
+        'https://www.gstatic.com/mediapipe/face_mesh'
       ];
 
       let faceMeshInstance = null;
@@ -295,16 +295,25 @@ const Index = () => {
       // Try each CDN until one works
       for (const baseUrl of cdnBases) {
         try {
-          // Pre-fetch the WASM file to verify CDN accessibility
-          const response = await fetch(baseUrl + 'face_mesh_solution_simd_wasm_bin.wasm');
-          if (!response.ok) {
-            throw new Error(`Failed to load from ${baseUrl}`);
+          // First try to load the main script
+          const scriptResponse = await fetch(`${baseUrl}/face_mesh.js`);
+          if (!scriptResponse.ok) {
+            console.log(`Failed to load script from ${baseUrl}`);
+            continue;
+          }
+
+          // Then try to load the WASM file
+          const wasmResponse = await fetch(`${baseUrl}/face_mesh_solution_packed_assets_loader.js`);
+          if (!wasmResponse.ok) {
+            console.log(`Failed to load WASM from ${baseUrl}`);
+            continue;
           }
 
           faceMeshInstance = new FaceMesh({
             locateFile: (file) => {
-              console.log(`Loading ${file} from ${baseUrl}`);
-              return `${baseUrl}${file}`;
+              const url = `${baseUrl}/${file}`;
+              console.log(`Loading file: ${url}`);
+              return url;
             }
           });
           
@@ -312,7 +321,7 @@ const Index = () => {
           console.log(`Successfully created FaceMesh using ${baseUrl}`);
           break;
         } catch (e) {
-          console.log(`Failed to create FaceMesh with ${baseUrl}, trying next...`);
+          console.log(`Failed to create FaceMesh with ${baseUrl}:`, e);
           continue;
         }
       }
@@ -334,9 +343,10 @@ const Index = () => {
 
       console.log("Initializing FaceMesh...");
       
-      // Required assets with fallbacks
+      // Required assets to preload
       const requiredAssets = [
         'face_mesh_solution_packed_assets.data',
+        'face_mesh_solution_packed_assets_loader.js',
         'face_mesh_solution_simd_wasm_bin.js',
         'face_mesh_solution_simd_wasm_bin.wasm',
         'face_mesh.binarypb'
@@ -346,11 +356,11 @@ const Index = () => {
       await Promise.all(
         requiredAssets.map(async (asset) => {
           try {
-            const response = await fetch(successfulCDN + asset);
+            const response = await fetch(`${successfulCDN}/${asset}`);
             if (!response.ok) {
               console.log(`Retrying ${asset} with fallback...`);
               // Try fallback filename if original fails
-              const fallbackResponse = await fetch(successfulCDN + asset.replace('_solution_simd', ''));
+              const fallbackResponse = await fetch(`${successfulCDN}/${asset.replace('_solution_simd', '')}`);
               if (!fallbackResponse.ok) {
                 throw new Error(`Failed to load ${asset}`);
               }
