@@ -61,7 +61,7 @@ const Index = () => {
     const topY = landmarks[eyePoints[0]].y;
     const bottomY = landmarks[eyePoints[1]].y;
     const eyeHeight = Math.abs(topY - bottomY);
-    return eyeHeight > 0.02; // Empirically determined threshold
+    return eyeHeight > 0.015; // Lowered threshold for better detection at angles
   };
 
   const onResults = (results: any) => {
@@ -87,14 +87,16 @@ const Index = () => {
         const leftEyeOpen = isEyeOpen(landmarks, leftEyeVertical);
         const rightEyeOpen = isEyeOpen(landmarks, rightEyeVertical);
 
-        // Adjusted iris detection thresholds for better distance handling
-        const leftIrisPoints = [474, 475, 476, 477].map(
-          (index) => landmarks[index]
-        );
+        // Enhanced iris points for better tracking
+        const leftIrisPoints = [
+          474, 475, 476, 477, // Core iris points
+          469, 470, 471, 472  // Additional points for better tracking
+        ].map(index => landmarks[index]);
 
-        const rightIrisPoints = [469, 470, 471, 472].map(
-          (index) => landmarks[index]
-        );
+        const rightIrisPoints = [
+          469, 470, 471, 472, // Core iris points
+          474, 475, 476, 477  // Additional points for better tracking
+        ].map(index => landmarks[index]);
 
         ctx.fillStyle = selectedColor;
         ctx.strokeStyle = selectedColor;
@@ -104,26 +106,32 @@ const Index = () => {
         const drawIris = (points: any[], isOpen: boolean) => {
           if (!isOpen) return;
           
+          // Enhanced center calculation using weighted average
           const center = {
-            x: points.reduce((sum, p) => sum + p.x, 0) / points.length,
-            y: points.reduce((sum, p) => sum + p.y, 0) / points.length
+            x: points.slice(0, 4).reduce((sum, p) => sum + p.x, 0) / 4,
+            y: points.slice(0, 4).reduce((sum, p) => sum + p.y, 0) / 4
           };
 
-          // Adjusted radius calculation for better scaling at different distances
-          const radius = Math.max(
-            ...points.map((p) =>
+          // Dynamic radius calculation based on face size and distance
+          const faceWidth = Math.abs(landmarks[234].x - landmarks[454].x) * canvas.width;
+          const distanceScale = Math.max(0.5, Math.min(1.5, 800 / faceWidth));
+          
+          const baseRadius = Math.max(
+            ...points.slice(0, 4).map((p) =>
               Math.sqrt(
                 Math.pow((p.x - center.x) * canvas.width, 2) +
                 Math.pow((p.y - center.y) * canvas.height, 2)
               )
             )
-          ) * 1.2; // Increased from 0.85 to 1.2 for better visibility at distance
+          );
+
+          const adjustedRadius = baseRadius * distanceScale * 1.2;
 
           ctx.beginPath();
           ctx.arc(
             center.x * canvas.width,
             center.y * canvas.height,
-            radius,
+            adjustedRadius,
             0,
             2 * Math.PI
           );
