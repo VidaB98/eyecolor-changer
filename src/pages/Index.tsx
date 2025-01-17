@@ -10,6 +10,11 @@ const predefinedColors = [
   { name: "Brown", value: "#8B4513" },
 ];
 
+interface ExtendedHTMLCanvasElement extends HTMLCanvasElement {
+  webkitCaptureStream?: (frameRate?: number) => MediaStream;
+  mozCaptureStream?: (frameRate?: number) => MediaStream;
+}
+
 const Index = () => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const outputVideoRef = useRef<HTMLVideoElement>(null);
@@ -153,10 +158,12 @@ const Index = () => {
       try {
         if (!outputVideoRef.current.srcObject) {
           let stream;
+          const canvas = canvasRef.current as ExtendedHTMLCanvasElement;
+          
           try {
             stream = canvas.captureStream(30);
           } catch (e) {
-            stream = canvas.captureStream?.(30) || canvas.webkitCaptureStream?.(30) || canvas.mozCaptureStream?.(30);
+            stream = canvas.webkitCaptureStream?.(30) || canvas.mozCaptureStream?.(30);
           }
 
           if (!stream) {
