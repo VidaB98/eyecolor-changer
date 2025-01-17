@@ -119,13 +119,16 @@ const Index = () => {
     const video = videoRef.current;
     if (!canvas || !video || !results.multiFaceLandmarks) return;
 
+    // Ensure canvas dimensions match video dimensions
+    if (canvas.width !== video.videoWidth || canvas.height !== video.videoHeight) {
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+    }
+
     const ctx = canvas.getContext('2d', { willReadFrequently: true });
     if (!ctx) return;
 
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-
-    // Draw the original frame first
+    // Draw the original frame
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
     if (results.multiFaceLandmarks) {
@@ -195,12 +198,22 @@ const Index = () => {
       }
     }
 
+    // Update the output video stream
     if (outputVideoRef.current) {
-      if (!outputVideoRef.current.srcObject) {
-        const stream = canvas.captureStream(targetFPS);
-        mediaStreamRef.current = stream;
-        outputVideoRef.current.srcObject = stream;
-        outputVideoRef.current.play().catch(console.error);
+      try {
+        if (!outputVideoRef.current.srcObject) {
+          const stream = canvas.captureStream();
+          mediaStreamRef.current = stream;
+          outputVideoRef.current.srcObject = stream;
+          outputVideoRef.current.play().catch(console.error);
+        }
+      } catch (error) {
+        console.error("Error capturing stream:", error);
+        toast({
+          title: "Stream Error",
+          description: "Unable to process video stream. Please try a different browser.",
+          variant: "destructive",
+        });
       }
     }
   };
@@ -211,11 +224,13 @@ const Index = () => {
     setIsProcessing(true);
     try {
       await faceMeshRef.current.send({ image: videoRef.current });
-      if (videoRef.current.paused || videoRef.current.ended) {
+      
+      // Continue processing if video is still playing
+      if (!videoRef.current.paused && !videoRef.current.ended) {
+        animationFrameRef.current = requestAnimationFrame(processVideo);
+      } else {
         setIsProcessing(false);
-        return;
       }
-      animationFrameRef.current = requestAnimationFrame(processVideo);
     } catch (error) {
       console.error("Error processing video:", error);
       setIsProcessing(false);
