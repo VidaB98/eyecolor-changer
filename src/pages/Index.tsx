@@ -130,7 +130,8 @@ const Index = () => {
     const bottomY = landmarks[eyePoints[1]].y;
     const eyeHeight = Math.abs(topY - bottomY);
     
-    return eyeHeight > 0.018; // Increased threshold for more accurate detection
+    // Return the actual eye height ratio instead of a boolean
+    return eyeHeight;
   };
 
   const onResults = (results: any) => {
@@ -161,8 +162,8 @@ const Index = () => {
         const leftEyeVertical = [159, 145];  
         const rightEyeVertical = [386, 374]; 
         
-        const leftEyeOpen = isEyeOpen(landmarks, leftEyeVertical);
-        const rightEyeOpen = isEyeOpen(landmarks, rightEyeVertical);
+        const leftEyeOpenRatio = isEyeOpen(landmarks, leftEyeVertical);
+        const rightEyeOpenRatio = isEyeOpen(landmarks, rightEyeVertical);
 
         const leftIrisCenter = 468;
         const rightIrisCenter = 473;
@@ -179,10 +180,12 @@ const Index = () => {
         irisCtx.fillStyle = selectedColor;
         irisCtx.strokeStyle = selectedColor;
         irisCtx.globalCompositeOperation = "source-over";
-        irisCtx.globalAlpha = 0.6;
 
-        const drawIris = (centerPoint: number, boundaryPoints: number[], isOpen: boolean) => {
-          if (!isOpen || !irisCtx) return;
+        const drawIris = (centerPoint: number, boundaryPoints: number[], openRatio: number) => {
+          if (!irisCtx) return;
+
+          // Only draw if the eye is at least slightly open
+          if (openRatio < 0.005) return;
 
           const centerX = landmarks[centerPoint].x * canvas.width;
           const centerY = landmarks[centerPoint].y * canvas.height;
@@ -195,18 +198,24 @@ const Index = () => {
           });
           const radius = (radii.reduce((a, b) => a + b, 0) / radii.length) * 0.85; // Reduce radius by 15%
 
+          // Adjust opacity based on how open the eye is
+          // Map the openRatio to a range between 0 and 0.6
+          const maxOpacity = 0.6;
+          const minOpenRatio = 0.005;
+          const maxOpenRatio = 0.018;
+          const opacity = Math.min(maxOpacity, 
+            (openRatio - minOpenRatio) / (maxOpenRatio - minOpenRatio) * maxOpacity
+          );
+          
+          irisCtx.globalAlpha = opacity;
+
           irisCtx.beginPath();
           irisCtx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
           irisCtx.fill();
         };
 
-        if (leftEyeOpen) {
-          drawIris(leftIrisCenter, leftIrisBoundary, leftEyeOpen);
-        }
-
-        if (rightEyeOpen) {
-          drawIris(rightIrisCenter, rightIrisBoundary, rightEyeOpen);
-        }
+        drawIris(leftIrisCenter, leftIrisBoundary, leftEyeOpenRatio);
+        drawIris(rightIrisCenter, rightIrisBoundary, rightEyeOpenRatio);
 
         // Blend the iris coloring with the original frame
         ctx.globalCompositeOperation = "soft-light";
