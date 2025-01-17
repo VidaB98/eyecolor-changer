@@ -24,8 +24,6 @@ const Index = () => {
   const lastFrameTimeRef = useRef<number>(0);
   const targetFPS = 60;
   const frameInterval = 1000 / targetFPS;
-  const [isRecording, setIsRecording] = useState(false);
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const [recordedBlob, setRecordedBlob] = useState<Blob | null>(null);
 
   const handleDownload = () => {
@@ -332,34 +330,15 @@ const Index = () => {
               {isProcessing ? "Processing..." : "Change Eye Color"}
             </Button>
             
-            <div className="flex gap-2">
-              {!isRecording ? (
-                <Button
-                  onClick={startRecording}
-                  disabled={!outputVideoRef.current?.srcObject}
-                  variant="secondary"
-                >
-                  Start Recording
-                </Button>
-              ) : (
-                <Button
-                  onClick={stopRecording}
-                  variant="destructive"
-                >
-                  Stop Recording
-                </Button>
-              )}
-              
-              <Button
-                onClick={handleDownload}
-                disabled={!recordedBlob}
-                variant="outline"
-                className="flex gap-2"
-              >
-                <Download className="size-4" />
-                Download
-              </Button>
-            </div>
+            <Button
+              onClick={handleDownload}
+              disabled={!recordedBlob}
+              variant="outline"
+              className="flex gap-2"
+            >
+              <Download className="size-4" />
+              Download
+            </Button>
           </div>
         </div>
       </Card>
