@@ -86,42 +86,39 @@ const Index = () => {
         const leftEyeOpen = isEyeOpen(landmarks, leftEyeVertical);
         const rightEyeOpen = isEyeOpen(landmarks, rightEyeVertical);
 
-        const leftEyeContour = [
-          33, 246, 161, 160, 159, 158, 157, 173, 133, 155, 154, 153, 145, 144, 163, 7
-        ];
-        const rightEyeContour = [
-          362, 398, 384, 385, 386, 387, 388, 466, 263, 249, 390, 373, 374, 380, 381, 382
-        ];
+        // Iris landmarks (excluding the white part of the eyes)
+        const leftIrisPoints = [474, 475, 476, 477];
+        const rightIrisPoints = [469, 470, 471, 472];
 
         ctx.fillStyle = selectedColor;
         ctx.strokeStyle = selectedColor;
         ctx.globalCompositeOperation = "soft-light";
-        ctx.globalAlpha = 0.5;
+        ctx.globalAlpha = 0.7;
 
-        const drawEyeShape = (points: number[], isOpen: boolean) => {
+        const drawIris = (points: number[], isOpen: boolean) => {
           if (!isOpen) return;
 
           ctx.beginPath();
-          points.forEach((point, index) => {
-            const x = landmarks[point].x * canvas.width;
-            const y = landmarks[point].y * canvas.height;
-            
-            if (index === 0) {
-              ctx.moveTo(x, y);
-            } else {
-              ctx.lineTo(x, y);
-            }
-          });
-          ctx.closePath();
+          // Draw a circle using the iris center and points
+          const centerX = landmarks[points[0]].x * canvas.width;
+          const centerY = landmarks[points[0]].y * canvas.height;
+          
+          // Calculate radius based on iris points
+          const radius = Math.hypot(
+            landmarks[points[1]].x * canvas.width - centerX,
+            landmarks[points[1]].y * canvas.height - centerY
+          );
+
+          ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
           ctx.fill();
         };
 
         if (leftEyeOpen) {
-          drawEyeShape(leftEyeContour, leftEyeOpen);
+          drawIris(leftIrisPoints, leftEyeOpen);
         }
 
         if (rightEyeOpen) {
-          drawEyeShape(rightEyeContour, rightEyeOpen);
+          drawIris(rightIrisPoints, rightEyeOpen);
         }
       }
     }
