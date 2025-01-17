@@ -32,7 +32,7 @@ const predefinedColors = [
 const Index = () => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [selectedColor, setSelectedColor] = useState<string>("");
+  const [selectedColor, setSelectedColor] = useState<string>("#8B4513"); // Set Brown as default
   const [isProcessing, setIsProcessing] = useState(false);
   const { toast } = useToast();
   const faceMeshRef = useRef<faceMesh.FaceMesh | null>(null);
@@ -219,7 +219,15 @@ const Index = () => {
             <div className="flex gap-4">
               <Select onValueChange={handleColorChange} value={selectedColor}>
                 <SelectTrigger className="w-[180px]">
-                  <SelectValue placeholder="Select a color" />
+                  <SelectValue>
+                    <div className="flex items-center gap-2">
+                      <div
+                        className="w-4 h-4 rounded-full"
+                        style={{ backgroundColor: selectedColor }}
+                      />
+                      {predefinedColors.find(c => c.value === selectedColor)?.name || 'Custom'}
+                    </div>
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {predefinedColors.map((color) => (
@@ -238,7 +246,7 @@ const Index = () => {
               <Input
                 id="color-picker"
                 type="color"
-                value={selectedColor || "#000000"}
+                value={selectedColor}
                 onChange={(e) => handleColorChange(e.target.value)}
                 className="h-10 w-20"
               />
