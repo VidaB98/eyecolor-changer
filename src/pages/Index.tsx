@@ -28,6 +28,32 @@ const Index = () => {
   const targetFPS = 60;
   const frameInterval = 1000 / targetFPS;
 
+  const processVideo = async () => {
+    if (!videoRef.current || !faceMeshRef.current) {
+      console.error("Video or FaceMesh not initialized");
+      return;
+    }
+
+    try {
+      setIsProcessing(true);
+      await faceMeshRef.current.send({ image: videoRef.current });
+    } catch (error) {
+      console.error("Error processing video:", error);
+      toast({
+        title: "Processing Error",
+        description: "Failed to process the video frame. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsProcessing(false);
+    }
+
+    // Schedule the next frame if video is playing
+    if (!videoRef.current.paused) {
+      animationFrameRef.current = requestAnimationFrame(() => processVideo());
+    }
+  };
+
   const handleDownload = () => {
     if (!outputVideoRef.current || !mediaStreamRef.current || !videoRef.current) return;
 
@@ -525,4 +551,3 @@ const Index = () => {
 };
 
 export default Index;
-
