@@ -12,8 +12,7 @@ const predefinedColors = [
 ];
 
 interface ExtendedHTMLCanvasElement extends HTMLCanvasElement {
-  webkitCaptureStream?: (frameRate?: number) => MediaStream;
-  mozCaptureStream?: (frameRate?: number) => MediaStream;
+  captureStream(frameRate?: number): MediaStream;
 }
 
 const Index = () => {
@@ -38,16 +37,12 @@ const Index = () => {
 
     const initializeFaceMesh = async () => {
       try {
-        console.log("Starting FaceMesh initialization...");
-        
-        // Create new FaceMesh instance with explicit CDN URL
         const faceMeshInstance = new FaceMesh({
           locateFile: (file) => {
-            return `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619/${file}`;
+            return `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`;
           },
         });
 
-        console.log("Setting FaceMesh options...");
         await faceMeshInstance.setOptions({
           maxNumFaces: 1,
           refineLandmarks: true,
@@ -55,34 +50,16 @@ const Index = () => {
           minTrackingConfidence: 0.5
         });
 
-        console.log("Setting up FaceMesh results handler...");
         faceMeshInstance.onResults(onResults);
 
         if (!cleanup) {
-          console.log("Initializing FaceMesh...");
-          try {
-            await faceMeshInstance.initialize();
-            console.log("FaceMesh initialized successfully");
-            faceMeshRef.current = faceMeshInstance;
-            setInitError(null);
-          } catch (error) {
-            console.error("Error initializing FaceMesh:", error);
-            setInitError("Failed to initialize face detection. Please ensure you have a stable internet connection and try refreshing the page.");
-            toast({
-              title: "Initialization Error",
-              description: "Failed to initialize face detection. Please refresh the page.",
-              variant: "destructive",
-            });
-          }
+          await faceMeshInstance.initialize();
+          faceMeshRef.current = faceMeshInstance;
+          setInitError(null);
         }
       } catch (error) {
         console.error("Error during FaceMesh setup:", error);
-        setInitError("Failed to set up face detection. Please refresh and try again.");
-        toast({
-          title: "Setup Error",
-          description: "Failed to set up face detection. Please refresh and try again.",
-          variant: "destructive",
-        });
+        setInitError("Failed to initialize face detection. Please refresh the page.");
       }
     };
 
@@ -101,11 +78,9 @@ const Index = () => {
       }
       if (audioSourceRef.current) {
         audioSourceRef.current.disconnect();
-        audioSourceRef.current = null;
       }
       if (audioContextRef.current) {
         audioContextRef.current.close();
-        audioContextRef.current = null;
       }
     };
   }, [toast]);
@@ -305,28 +280,19 @@ const Index = () => {
       cancelAnimationFrame(animationFrameRef.current);
     }
 
-    const videoUrl = URL.createObjectURL(new Blob([file], { type: file.type }));
+    const videoUrl = URL.createObjectURL(file);
     
     if (videoRef.current) {
       videoRef.current.src = videoUrl;
       videoRef.current.load();
-
-      videoRef.current.onerror = (e) => {
-        console.error("Error loading video:", e);
-        setInitError("Failed to load the video. Please try a different format.");
-      };
-
+      
       videoRef.current.onloadeddata = () => {
         if (videoRef.current) {
-          if (videoRef.current.canPlayType(file.type)) {
-            videoRef.current.play().catch(error => {
-              console.error("Error playing video:", error);
-              setInitError("Unable to play the video. Please try a different browser or video format.");
-            });
-            processVideo();
-          } else {
-            setInitError("This video format is not supported by your browser. Please try a different format.");
-          }
+          videoRef.current.play().catch(error => {
+            console.error("Error playing video:", error);
+            setInitError("Unable to play the video. Please try a different browser or video format.");
+          });
+          processVideo();
         }
       };
     }
