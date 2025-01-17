@@ -5,6 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Upload, Download } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { FaceMesh } from "@mediapipe/face_mesh";
 
 const predefinedColors = [
   { name: "Brown", value: "#8B4513" },
@@ -17,15 +18,14 @@ const Index = () => {
   const [selectedColor, setSelectedColor] = useState<string>(predefinedColors[0].value);
   const [isProcessing, setIsProcessing] = useState(false);
   const { toast } = useToast();
-  const faceMeshRef = useRef<any>(null);
+  const faceMeshRef = useRef<FaceMesh | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const animationFrameRef = useRef<number>();
   const lastFrameTimeRef = useRef<number>(0);
   const audioContextRef = useRef<AudioContext | null>(null);
   const audioSourceRef = useRef<MediaElementAudioSourceNode | null>(null);
-  const targetFPS = 30;
+  const targetFPS = 60;
   const frameInterval = 1000 / targetFPS;
-  const mountedRef = useRef(true);
 
   const handleDownload = () => {
     if (!outputVideoRef.current || !mediaStreamRef.current || !videoRef.current) return;
@@ -100,17 +100,16 @@ const Index = () => {
     const topY = landmarks[eyePoints[0]].y;
     const bottomY = landmarks[eyePoints[1]].y;
     const eyeHeight = Math.abs(topY - bottomY);
+    
+    // Return the actual eye height ratio instead of a boolean
     return eyeHeight;
   };
 
   const onResults = (results: any) => {
-    if (!mountedRef.current) return;
-
     const currentTime = performance.now();
     const timeSinceLastFrame = currentTime - lastFrameTimeRef.current;
     
     if (timeSinceLastFrame < frameInterval) {
-      animationFrameRef.current = requestAnimationFrame(() => processVideo());
       return;
     }
     
@@ -118,28 +117,16 @@ const Index = () => {
 
     const canvas = canvasRef.current;
     const video = videoRef.current;
-    if (!canvas || !video || !results.multiFaceLandmarks) {
-      setIsProcessing(false);
-      return;
-    }
+    if (!canvas || !video || !results.multiFaceLandmarks) return;
 
-    const ctx = canvas.getContext('2d', { 
-      willReadFrequently: true,
-      alpha: false
-    });
-    if (!ctx) {
-      setIsProcessing(false);
-      return;
-    }
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    if (!ctx) return;
 
-    // Match canvas size to video size
-    if (canvas.width !== video.videoWidth || canvas.height !== video.videoHeight) {
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-    }
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
 
-    ctx.imageSmoothingEnabled = false;
-    ctx.drawImage(video, 0, 0);
+    // Draw the original frame first
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
     if (results.multiFaceLandmarks) {
       for (const landmarks of results.multiFaceLandmarks) {
@@ -154,29 +141,36 @@ const Index = () => {
         const leftIrisBoundary = [469, 470, 471, 472];
         const rightIrisBoundary = [474, 475, 476, 477];
 
+        // Create a separate canvas for the iris coloring
         const irisCanvas = document.createElement('canvas');
         irisCanvas.width = canvas.width;
         irisCanvas.height = canvas.height;
-        const irisCtx = irisCanvas.getContext('2d', { alpha: true });
+        const irisCtx = irisCanvas.getContext('2d');
         if (!irisCtx) return;
 
         irisCtx.fillStyle = selectedColor;
         irisCtx.strokeStyle = selectedColor;
+        irisCtx.globalCompositeOperation = "source-over";
 
         const drawIris = (centerPoint: number, boundaryPoints: number[], openRatio: number) => {
           if (!irisCtx) return;
+
+          // Only draw if the eye is at least slightly open
           if (openRatio < 0.005) return;
 
           const centerX = landmarks[centerPoint].x * canvas.width;
           const centerY = landmarks[centerPoint].y * canvas.height;
 
+          // Calculate average radius but make it slightly smaller to avoid coloring eyelashes
           const radii = boundaryPoints.map(point => {
             const dx = landmarks[point].x * canvas.width - centerX;
             const dy = landmarks[point].y * canvas.height - centerY;
             return Math.hypot(dx, dy);
           });
-          const radius = (radii.reduce((a, b) => a + b, 0) / radii.length) * 0.85;
+          const radius = (radii.reduce((a, b) => a + b, 0) / radii.length) * 0.85; // Reduce radius by 15%
 
+          // Adjust opacity based on how open the eye is
+          // Map the openRatio to a range between 0 and 0.6
           const maxOpacity = 0.6;
           const minOpenRatio = 0.005;
           const maxOpenRatio = 0.018;
@@ -185,6 +179,7 @@ const Index = () => {
           );
           
           irisCtx.globalAlpha = opacity;
+
           irisCtx.beginPath();
           irisCtx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
           irisCtx.fill();
@@ -193,37 +188,34 @@ const Index = () => {
         drawIris(leftIrisCenter, leftIrisBoundary, leftEyeOpenRatio);
         drawIris(rightIrisCenter, rightIrisBoundary, rightEyeOpenRatio);
 
+        // Blend the iris coloring with the original frame
         ctx.globalCompositeOperation = "soft-light";
         ctx.drawImage(irisCanvas, 0, 0);
         ctx.globalCompositeOperation = "source-over";
       }
     }
 
-    if (outputVideoRef.current && !outputVideoRef.current.srcObject) {
-      const stream = canvas.captureStream(targetFPS);
-      mediaStreamRef.current = stream;
-      outputVideoRef.current.srcObject = stream;
-      outputVideoRef.current.play().catch(console.error);
-    }
-
-    if (videoRef.current && (videoRef.current.ended || videoRef.current.paused)) {
-      setIsProcessing(false);
-    } else {
-      animationFrameRef.current = requestAnimationFrame(() => processVideo());
+    if (outputVideoRef.current) {
+      if (!outputVideoRef.current.srcObject) {
+        const stream = canvas.captureStream(targetFPS);
+        mediaStreamRef.current = stream;
+        outputVideoRef.current.srcObject = stream;
+        outputVideoRef.current.play().catch(console.error);
+      }
     }
   };
 
   const processVideo = async () => {
-    if (!videoRef.current || !faceMeshRef.current || !mountedRef.current) {
-      setIsProcessing(false);
-      return;
-    }
+    if (!videoRef.current || !faceMeshRef.current) return;
 
+    setIsProcessing(true);
     try {
       await faceMeshRef.current.send({ image: videoRef.current });
       if (videoRef.current.paused || videoRef.current.ended) {
         setIsProcessing(false);
+        return;
       }
+      animationFrameRef.current = requestAnimationFrame(processVideo);
     } catch (error) {
       console.error("Error processing video:", error);
       setIsProcessing(false);
@@ -248,7 +240,6 @@ const Index = () => {
       return;
     }
 
-    // Clean up previous resources
     if (mediaStreamRef.current) {
       mediaStreamRef.current.getTracks().forEach(track => track.stop());
     }
@@ -259,115 +250,59 @@ const Index = () => {
       cancelAnimationFrame(animationFrameRef.current);
     }
 
-    setIsProcessing(true);
     const videoUrl = URL.createObjectURL(file);
-    
     if (videoRef.current) {
       videoRef.current.src = videoUrl;
       videoRef.current.load();
-      
-      // Add error handling for video loading
-      videoRef.current.onerror = () => {
-        toast({
-          title: "Error",
-          description: "Failed to load video. Please try a different file.",
-          variant: "destructive",
-        });
-        setIsProcessing(false);
-      };
-
-      videoRef.current.onloadeddata = async () => {
-        if (!videoRef.current || !mountedRef.current) return;
-        
-        try {
-          if (!faceMeshRef.current) {
-            await initFaceMesh();
-          }
-          
-          // Ensure video playback starts correctly
-          try {
-            await videoRef.current.play();
-          } catch (playError) {
-            console.error("Video play error:", playError);
-            await new Promise(resolve => setTimeout(resolve, 100));
-            await videoRef.current.play();
-          }
-          
+      videoRef.current.onloadeddata = () => {
+        if (videoRef.current) {
+          videoRef.current.play().catch(console.error);
           processVideo();
-        } catch (error) {
-          console.error("Error starting video processing:", error);
-          toast({
-            title: "Error",
-            description: "Failed to process video. Please try again.",
-            variant: "destructive",
-          });
-          setIsProcessing(false);
         }
       };
-    }
-  };
-
-  const initFaceMesh = async () => {
-    try {
-      if (faceMeshRef.current) {
-        await faceMeshRef.current.close();
-        faceMeshRef.current = null;
-      }
-
-      const { FaceMesh } = await import('@mediapipe/face_mesh');
-      
-      const faceMesh = new FaceMesh({
-        locateFile: (file) => {
-          return `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619/${file}`;
-        }
-      });
-
-      await faceMesh.initialize();
-      
-      await faceMesh.setOptions({
-        maxNumFaces: 1,
-        refineLandmarks: true,
-        minDetectionConfidence: 0.5,
-        minTrackingConfidence: 0.5
-      });
-
-      faceMesh.onResults(onResults);
-
-      if (mountedRef.current) {
-        faceMeshRef.current = faceMesh;
-        console.log("FaceMesh initialized successfully");
-      } else {
-        await faceMesh.close();
-      }
-    } catch (error) {
-      console.error("Error initializing FaceMesh:", error);
-      if (mountedRef.current) {
-        toast({
-          title: "Error",
-          description: "Failed to initialize face detection. Please try refreshing the page.",
-          variant: "destructive",
-        });
-        setTimeout(() => {
-          if (mountedRef.current && !faceMeshRef.current) {
-            initFaceMesh();
-          }
-        }, 2000);
-      }
     }
   };
 
   useEffect(() => {
-    mountedRef.current = true;
+    const initFaceMesh = async () => {
+      try {
+        const faceMesh = new FaceMesh({
+          locateFile: (file) => {
+            return `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`;
+          }
+        });
+
+        await faceMesh.setOptions({
+          maxNumFaces: 1,
+          refineLandmarks: true,
+          minDetectionConfidence: 0.5,
+          minTrackingConfidence: 0.5
+        });
+
+        await faceMesh.initialize();
+        
+        faceMesh.onResults(onResults);
+        faceMeshRef.current = faceMesh;
+      } catch (error) {
+        console.error("Error initializing FaceMesh:", error);
+        toast({
+          title: "Error",
+          description: "Failed to initialize face detection",
+          variant: "destructive",
+        });
+      }
+    };
+
     initFaceMesh();
 
     return () => {
-      mountedRef.current = false;
       if (mediaStreamRef.current) {
         mediaStreamRef.current.getTracks().forEach(track => track.stop());
       }
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
       }
+      // Clean up audio context and source
       if (audioSourceRef.current) {
         audioSourceRef.current.disconnect();
         audioSourceRef.current = null;
@@ -376,12 +311,8 @@ const Index = () => {
         audioContextRef.current.close();
         audioContextRef.current = null;
       }
-      if (faceMeshRef.current) {
-        faceMeshRef.current.close();
-        faceMeshRef.current = null;
-      }
     };
-  }, []);
+  }, [toast]);
 
   return (
     <div className="container mx-auto p-4">
@@ -436,15 +367,33 @@ const Index = () => {
             <canvas ref={canvasRef} className="hidden" />
           </div>
 
-          <Button
-            onClick={handleDownload}
-            disabled={!canvasRef.current}
-            variant="outline"
-            className="flex gap-2 w-full"
-          >
-            <Download className="size-4" />
-            Download
-          </Button>
+          <div className="flex gap-4">
+            <Button
+              onClick={() => {
+                if (videoRef.current && videoRef.current.paused) {
+                  videoRef.current.play().then(() => {
+                    processVideo();
+                  }).catch(console.error);
+                } else {
+                  processVideo();
+                }
+              }}
+              disabled={isProcessing || !videoRef.current?.src}
+              className="flex-1"
+            >
+              {isProcessing ? "Processing..." : "Change Eye Color"}
+            </Button>
+            
+            <Button
+              onClick={handleDownload}
+              disabled={!canvasRef.current}
+              variant="outline"
+              className="flex gap-2"
+            >
+              <Download className="size-4" />
+              Download
+            </Button>
+          </div>
         </div>
       </Card>
     </div>
