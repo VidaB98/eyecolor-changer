@@ -120,13 +120,14 @@ const Index = () => {
     if (!canvas || !video || !results.multiFaceLandmarks) return;
 
     // Ensure canvas dimensions match video dimensions
-    if (canvas.width !== video.videoWidth || canvas.height !== video.videoHeight) {
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-    }
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
 
     const ctx = canvas.getContext('2d', { willReadFrequently: true });
-    if (!ctx) return;
+    if (!ctx) {
+      console.error("Failed to get canvas context");
+      return;
+    }
 
     // Draw the original frame
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
@@ -198,14 +199,26 @@ const Index = () => {
       }
     }
 
-    // Update the output video stream
+    // Update the output video stream with enhanced error handling
     if (outputVideoRef.current) {
       try {
         if (!outputVideoRef.current.srcObject) {
-          const stream = canvas.captureStream();
+          console.log("Creating new stream from canvas...");
+          const stream = canvas.captureStream(30); // Specify frame rate
+          if (!stream) {
+            throw new Error("Failed to capture stream from canvas");
+          }
+          console.log("Stream created successfully:", stream.getTracks().length, "tracks");
           mediaStreamRef.current = stream;
           outputVideoRef.current.srcObject = stream;
-          outputVideoRef.current.play().catch(console.error);
+          outputVideoRef.current.play().catch(error => {
+            console.error("Error playing output video:", error);
+            toast({
+              title: "Playback Error",
+              description: "Unable to play processed video. Please try a different browser.",
+              variant: "destructive",
+            });
+          });
         }
       } catch (error) {
         console.error("Error capturing stream:", error);
