@@ -263,36 +263,36 @@ const Index = () => {
     }
   };
 
+  const initFaceMesh = async () => {
+    try {
+      const faceMesh = new FaceMesh({
+        locateFile: (file) => {
+          return `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`;
+        }
+      });
+
+      await faceMesh.setOptions({
+        maxNumFaces: 1,
+        refineLandmarks: true,
+        minDetectionConfidence: 0.5,
+        minTrackingConfidence: 0.5
+      });
+
+      await faceMesh.initialize();
+      
+      faceMesh.onResults(onResults);
+      faceMeshRef.current = faceMesh;
+    } catch (error) {
+      console.error("Error initializing FaceMesh:", error);
+      toast({
+        title: "Error",
+        description: "Failed to initialize face detection",
+        variant: "destructive",
+      });
+    }
+  };
+
   useEffect(() => {
-    const initFaceMesh = async () => {
-      try {
-        const faceMesh = new FaceMesh({
-          locateFile: (file) => {
-            return `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`;
-          }
-        });
-
-        await faceMesh.setOptions({
-          maxNumFaces: 1,
-          refineLandmarks: true,
-          minDetectionConfidence: 0.5,
-          minTrackingConfidence: 0.5
-        });
-
-        await faceMesh.initialize();
-        
-        faceMesh.onResults(onResults);
-        faceMeshRef.current = faceMesh;
-      } catch (error) {
-        console.error("Error initializing FaceMesh:", error);
-        toast({
-          title: "Error",
-          description: "Failed to initialize face detection",
-          variant: "destructive",
-        });
-      }
-    };
-
     initFaceMesh();
 
     return () => {
