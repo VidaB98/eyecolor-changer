@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Upload } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import * as F from "@mediapipe/face_mesh";
+import { FaceMesh } from "@mediapipe/face_mesh";
 import {
   Select,
   SelectContent,
@@ -36,7 +36,7 @@ const Index = () => {
   const [selectedColor, setSelectedColor] = useState<string>(predefinedColors[0].value);
   const [isProcessing, setIsProcessing] = useState(false);
   const { toast } = useToast();
-  const faceMeshRef = useRef<F.FaceMesh | null>(null);
+  const faceMeshRef = useRef<FaceMesh | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const animationFrameRef = useRef<number>();
 
@@ -44,22 +44,23 @@ const Index = () => {
     const initFaceMesh = async () => {
       if (typeof window === 'undefined') return;
       
-      faceMeshRef.current = new F.FaceMesh({
+      const faceMesh = new FaceMesh({
         locateFile: (file) => {
           return `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619/${file}`;
         },
       });
 
-      await faceMeshRef.current.initialize();
+      await faceMesh.initialize();
 
-      faceMeshRef.current.setOptions({
+      faceMesh.setOptions({
         maxNumFaces: 1,
         refineLandmarks: true,
         minDetectionConfidence: 0.5,
         minTrackingConfidence: 0.5,
       });
 
-      faceMeshRef.current.onResults(onResults);
+      faceMesh.onResults(onResults);
+      faceMeshRef.current = faceMesh;
     };
 
     initFaceMesh();
