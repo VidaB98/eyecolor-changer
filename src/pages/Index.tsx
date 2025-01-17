@@ -6,19 +6,9 @@ import { Card } from "@/components/ui/card";
 import { Upload } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { FaceMesh } from "@mediapipe/face_mesh";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 
 const predefinedColors = [
-  { name: "Black", value: "#000000" },
   { name: "Brown", value: "#8B4513" },
-  { name: "Blue", value: "#0EA5E9" },
-  { name: "Green", value: "#22c55e" },
 ];
 
 const Index = () => {
@@ -105,32 +95,10 @@ const Index = () => {
           (index) => landmarks[index]
         );
 
-        // Set the selected color
         ctx.fillStyle = selectedColor;
         ctx.strokeStyle = selectedColor;
-
-        // Apply specific settings for each color
-        switch (selectedColor) {
-          case "#000000": // Black
-            ctx.globalCompositeOperation = "source-over";
-            ctx.globalAlpha = 0.75;
-            break;
-          case "#8B4513": // Brown
-            ctx.globalCompositeOperation = "multiply";
-            ctx.globalAlpha = 0.8;
-            break;
-          case "#0EA5E9": // Blue
-            ctx.globalCompositeOperation = "overlay";
-            ctx.globalAlpha = 0.85;
-            break;
-          case "#22c55e": // Green
-            ctx.globalCompositeOperation = "overlay";
-            ctx.globalAlpha = 0.8;
-            break;
-          default:
-            ctx.globalCompositeOperation = "source-over";
-            ctx.globalAlpha = 0.75;
-        }
+        ctx.globalCompositeOperation = "multiply";
+        ctx.globalAlpha = 0.8;
 
         const drawIris = (points: any[], isOpen: boolean) => {
           if (!isOpen) return;
@@ -240,14 +208,10 @@ const Index = () => {
     }
   };
 
-  const handleColorChange = (value: string) => {
-    setSelectedColor(value);
-  };
-
   return (
     <div className="container mx-auto p-4">
       <Card className="p-6 max-w-2xl mx-auto">
-        <h1 className="text-2xl font-bold mb-6">AI Eye Color Changer</h1>
+        <h1 className="text-2xl font-bold mb-6">Change your eye color to brown</h1>
 
         <div className="space-y-6">
           <div>
@@ -267,45 +231,6 @@ const Index = () => {
                 <Upload className="mr-2" />
                 Choose Video
               </Button>
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="color-picker">Choose Eye Color</Label>
-            <div className="flex gap-4">
-              <Select onValueChange={handleColorChange} value={selectedColor}>
-                <SelectTrigger className="w-[180px]">
-                  <SelectValue>
-                    <div className="flex items-center gap-2">
-                      <div
-                        className="w-4 h-4 rounded-full"
-                        style={{ backgroundColor: selectedColor }}
-                      />
-                      {predefinedColors.find(c => c.value === selectedColor)?.name || 'Custom'}
-                    </div>
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  {predefinedColors.map((color) => (
-                    <SelectItem key={color.value} value={color.value}>
-                      <div className="flex items-center gap-2">
-                        <div
-                          className="w-4 h-4 rounded-full"
-                          style={{ backgroundColor: color.value }}
-                        />
-                        {color.name}
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Input
-                id="color-picker"
-                type="color"
-                value={selectedColor}
-                onChange={(e) => handleColorChange(e.target.value)}
-                className="h-10 w-20"
-              />
             </div>
           </div>
 
@@ -346,7 +271,7 @@ const Index = () => {
                 processVideo();
               }
             }}
-            disabled={isProcessing || !selectedColor || !videoRef.current?.src}
+            disabled={isProcessing || !videoRef.current?.src}
             className="w-full"
           >
             {isProcessing ? "Processing..." : "Change Eye Color"}
