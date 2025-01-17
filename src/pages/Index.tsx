@@ -7,6 +7,24 @@ import { Upload } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { FaceMesh } from "@mediapipe/face_mesh";
 import { drawConnectors } from "@mediapipe/drawing_utils";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
+const predefinedColors = [
+  { name: "Red", value: "#ff0000" },
+  { name: "Purple", value: "#9b87f5" },
+  { name: "Blue", value: "#0EA5E9" },
+  { name: "Green", value: "#22c55e" },
+  { name: "Brown", value: "#8B4513" },
+  { name: "Gray", value: "#8E9196" },
+  { name: "Amber", value: "#FEC6A1" },
+  { name: "Violet", value: "#8B5CF6" },
+];
 
 const Index = () => {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -20,7 +38,6 @@ const Index = () => {
     const initFaceMesh = async () => {
       if (typeof window === 'undefined') return;
       
-      // Create a new FaceMesh instance
       const faceMesh = new FaceMesh({
         locateFile: (file) => {
           return `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619/${file}`;
@@ -72,7 +89,6 @@ const Index = () => {
         ctx.globalCompositeOperation = "overlay";
         ctx.globalAlpha = 0.6;
 
-        // Calculate iris centers and radii
         const getIrisCenter = (points: any[]) => {
           const x = points.reduce((sum, p) => sum + p.x, 0) / points.length;
           const y = points.reduce((sum, p) => sum + p.y, 0) / points.length;
@@ -93,7 +109,6 @@ const Index = () => {
           );
         };
 
-        // Draw left iris
         const leftCenter = getIrisCenter(leftIrisPoints);
         const leftRadius = getIrisRadius(leftIrisPoints, leftCenter);
         ctx.beginPath();
@@ -106,7 +121,6 @@ const Index = () => {
         );
         ctx.fill();
 
-        // Draw right iris
         const rightCenter = getIrisCenter(rightIrisPoints);
         const rightRadius = getIrisRadius(rightIrisPoints, rightCenter);
         ctx.beginPath();
@@ -165,6 +179,10 @@ const Index = () => {
     }
   };
 
+  const handleColorChange = (value: string) => {
+    setSelectedColor(value);
+  };
+
   return (
     <div className="container mx-auto p-4">
       <Card className="p-6 max-w-2xl mx-auto">
@@ -191,15 +209,35 @@ const Index = () => {
             </div>
           </div>
 
-          <div>
+          <div className="space-y-2">
             <Label htmlFor="color-picker">Choose Eye Color</Label>
-            <Input
-              id="color-picker"
-              type="color"
-              value={selectedColor}
-              onChange={(e) => setSelectedColor(e.target.value)}
-              className="h-12 w-full"
-            />
+            <div className="flex gap-4">
+              <Select onValueChange={handleColorChange} defaultValue={selectedColor}>
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Select color" />
+                </SelectTrigger>
+                <SelectContent>
+                  {predefinedColors.map((color) => (
+                    <SelectItem key={color.value} value={color.value}>
+                      <div className="flex items-center gap-2">
+                        <div
+                          className="w-4 h-4 rounded-full"
+                          style={{ backgroundColor: color.value }}
+                        />
+                        {color.name}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Input
+                id="color-picker"
+                type="color"
+                value={selectedColor}
+                onChange={(e) => setSelectedColor(e.target.value)}
+                className="h-10 w-20"
+              />
+            </div>
           </div>
 
           <div className="space-y-4">
