@@ -282,7 +282,7 @@ const Index = () => {
     try {
       console.log("Creating FaceMesh instance...");
       
-      // Define CDN bases with version
+      // Define CDN bases with version and fallbacks
       const cdnBases = [
         'https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619/',
         'https://unpkg.com/@mediapipe/face_mesh@0.4.1633559619/',
@@ -295,8 +295,8 @@ const Index = () => {
       // Try each CDN until one works
       for (const baseUrl of cdnBases) {
         try {
-          // Pre-fetch the main script to verify CDN accessibility
-          const response = await fetch(baseUrl + 'face_mesh_solution_simd_wasm_bin.js');
+          // Pre-fetch the WASM file to verify CDN accessibility
+          const response = await fetch(baseUrl + 'face_mesh_solution_simd_wasm_bin.wasm');
           if (!response.ok) {
             throw new Error(`Failed to load from ${baseUrl}`);
           }
@@ -304,7 +304,7 @@ const Index = () => {
           faceMeshInstance = new FaceMesh({
             locateFile: (file) => {
               console.log(`Loading ${file} from ${baseUrl}`);
-              return baseUrl + file;
+              return `${baseUrl}${file}`;
             }
           });
           
@@ -345,14 +345,19 @@ const Index = () => {
       // Pre-fetch all required assets
       await Promise.all(
         requiredAssets.map(async (asset) => {
-          const response = await fetch(successfulCDN + asset);
-          if (!response.ok) {
-            console.log(`Retrying ${asset} with fallback...`);
-            // Try fallback filename if original fails
-            const fallbackResponse = await fetch(successfulCDN + asset.replace('_solution_simd', ''));
-            if (!fallbackResponse.ok) {
-              throw new Error(`Failed to load ${asset}`);
+          try {
+            const response = await fetch(successfulCDN + asset);
+            if (!response.ok) {
+              console.log(`Retrying ${asset} with fallback...`);
+              // Try fallback filename if original fails
+              const fallbackResponse = await fetch(successfulCDN + asset.replace('_solution_simd', ''));
+              if (!fallbackResponse.ok) {
+                throw new Error(`Failed to load ${asset}`);
+              }
             }
+          } catch (error) {
+            console.error(`Failed to load asset ${asset}:`, error);
+            throw error;
           }
         })
       );
