@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Upload } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { FaceMesh } from "@mediapipe/face_mesh";
+import * as faceMesh from "@mediapipe/face_mesh"; // Changed import statement
 
 const predefinedColors = [
   { name: "Brown", value: "#8B4513" },
@@ -18,7 +18,7 @@ const Index = () => {
   const [selectedColor, setSelectedColor] = useState<string>(predefinedColors[0].value);
   const [isProcessing, setIsProcessing] = useState(false);
   const { toast } = useToast();
-  const faceMeshRef = useRef<FaceMesh | null>(null);
+  const faceMeshRef = useRef<faceMesh.FaceMesh | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const animationFrameRef = useRef<number>();
 
@@ -26,23 +26,23 @@ const Index = () => {
     const initFaceMesh = async () => {
       if (typeof window === 'undefined') return;
       
-      const faceMesh = new FaceMesh({
+      const faceMeshInstance = new faceMesh.FaceMesh({ // Updated constructor call
         locateFile: (file) => {
           return `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619/${file}`;
         },
       });
 
-      await faceMesh.initialize();
+      await faceMeshInstance.initialize();
 
-      faceMesh.setOptions({
+      faceMeshInstance.setOptions({
         maxNumFaces: 1,
         refineLandmarks: true,
         minDetectionConfidence: 0.5,
         minTrackingConfidence: 0.5,
       });
 
-      faceMesh.onResults(onResults);
-      faceMeshRef.current = faceMesh;
+      faceMeshInstance.onResults(onResults);
+      faceMeshRef.current = faceMeshInstance;
     };
 
     initFaceMesh();
