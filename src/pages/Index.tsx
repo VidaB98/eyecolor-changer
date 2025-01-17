@@ -117,13 +117,19 @@ const Index = () => {
 
     const canvas = canvasRef.current;
     const video = videoRef.current;
-    if (!canvas || !video || !results.multiFaceLandmarks) return;
+    if (!canvas || !video || !results.multiFaceLandmarks) {
+      setIsProcessing(false);
+      return;
+    }
 
     const ctx = canvas.getContext('2d', { 
       willReadFrequently: true,
       alpha: false // Disable alpha channel for better performance
     });
-    if (!ctx) return;
+    if (!ctx) {
+      setIsProcessing(false);
+      return;
+    }
 
     // Match canvas size to video size
     if (canvas.width !== video.videoWidth || canvas.height !== video.videoHeight) {
@@ -206,7 +212,10 @@ const Index = () => {
   };
 
   const processVideo = async () => {
-    if (!videoRef.current || !faceMeshRef.current) return;
+    if (!videoRef.current || !faceMeshRef.current) {
+      setIsProcessing(false);
+      return;
+    }
 
     setIsProcessing(true);
     try {
@@ -215,7 +224,6 @@ const Index = () => {
         setIsProcessing(false);
         return;
       }
-      animationFrameRef.current = requestAnimationFrame(processVideo);
     } catch (error) {
       console.error("Error processing video:", error);
       setIsProcessing(false);
@@ -239,6 +247,8 @@ const Index = () => {
       });
       return;
     }
+
+    setIsProcessing(true);
 
     if (mediaStreamRef.current) {
       mediaStreamRef.current.getTracks().forEach(track => track.stop());
