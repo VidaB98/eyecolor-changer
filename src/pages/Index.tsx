@@ -153,8 +153,7 @@ const Index = () => {
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
 
-    ctx.save();
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    // Draw the original frame first
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
     if (results.multiFaceLandmarks) {
@@ -170,27 +169,35 @@ const Index = () => {
         const leftIrisBoundary = [469, 470, 471, 472];
         const rightIrisBoundary = [474, 475, 476, 477];
 
-        ctx.fillStyle = selectedColor;
-        ctx.strokeStyle = selectedColor;
-        ctx.globalCompositeOperation = "soft-light";
-        ctx.globalAlpha = 0.7;
+        // Create a separate canvas for the iris coloring
+        const irisCanvas = document.createElement('canvas');
+        irisCanvas.width = canvas.width;
+        irisCanvas.height = canvas.height;
+        const irisCtx = irisCanvas.getContext('2d');
+        if (!irisCtx) return;
+
+        irisCtx.fillStyle = selectedColor;
+        irisCtx.strokeStyle = selectedColor;
+        irisCtx.globalCompositeOperation = "source-over";
+        irisCtx.globalAlpha = 0.6;
 
         const drawIris = (centerPoint: number, boundaryPoints: number[], isOpen: boolean) => {
-          if (!isOpen) return;
+          if (!isOpen || !irisCtx) return;
 
           const centerX = landmarks[centerPoint].x * canvas.width;
           const centerY = landmarks[centerPoint].y * canvas.height;
 
+          // Calculate average radius but make it slightly smaller to avoid coloring eyelashes
           const radii = boundaryPoints.map(point => {
             const dx = landmarks[point].x * canvas.width - centerX;
             const dy = landmarks[point].y * canvas.height - centerY;
             return Math.hypot(dx, dy);
           });
-          const radius = radii.reduce((a, b) => a + b, 0) / radii.length;
+          const radius = (radii.reduce((a, b) => a + b, 0) / radii.length) * 0.85; // Reduce radius by 15%
 
-          ctx.beginPath();
-          ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
-          ctx.fill();
+          irisCtx.beginPath();
+          irisCtx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
+          irisCtx.fill();
         };
 
         if (leftEyeOpen) {
@@ -200,10 +207,13 @@ const Index = () => {
         if (rightEyeOpen) {
           drawIris(rightIrisCenter, rightIrisBoundary, rightEyeOpen);
         }
+
+        // Blend the iris coloring with the original frame
+        ctx.globalCompositeOperation = "soft-light";
+        ctx.drawImage(irisCanvas, 0, 0);
+        ctx.globalCompositeOperation = "source-over";
       }
     }
-
-    ctx.restore();
 
     if (outputVideoRef.current) {
       if (!outputVideoRef.current.srcObject) {
