@@ -30,8 +30,8 @@ export const drawIris = (
   });
   const radius = (radii.reduce((a, b) => a + b, 0) / radii.length) * 0.85;
 
-  // Set a fixed opacity of 0.6 (60%)
-  irisCtx.globalAlpha = 0.6;
+  // Set a fixed opacity of 0.7 (70%)
+  irisCtx.globalAlpha = 0.7;
   irisCtx.fillStyle = selectedColor;
   irisCtx.strokeStyle = selectedColor;
   irisCtx.beginPath();
