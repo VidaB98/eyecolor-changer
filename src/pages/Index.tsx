@@ -259,42 +259,31 @@ const Index = () => {
         try {
           console.log("Starting FaceMesh initialization...");
           
-          // Create a more robust file loading mechanism
           const faceMeshInstance = new FaceMesh({
-            locateFile: (file) => {
+            locateFile: async (file) => {
               console.log("Loading file:", file);
-              // Use a specific version and fallback mechanism
               const cdnUrls = [
                 `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4/${file}`,
                 `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619/${file}`,
                 `https://unpkg.com/@mediapipe/face_mesh@0.4/${file}`
               ];
               
-              // Try to preload the file to verify it's accessible
-              const preloadFile = async (url: string) => {
+              // Try each URL until we find one that works
+              for (const url of cdnUrls) {
                 try {
                   const response = await fetch(url, { method: 'HEAD' });
-                  return response.ok;
-                } catch {
-                  return false;
-                }
-              };
-
-              // Return the first working URL or the first one as fallback
-              const getWorkingUrl = async () => {
-                for (const url of cdnUrls) {
-                  if (await preloadFile(url)) {
+                  if (response.ok) {
                     console.log("Successfully loaded from:", url);
                     return url;
                   }
+                } catch (error) {
+                  console.log(`Failed to load from ${url}:`, error);
+                  continue;
                 }
-                console.log("Falling back to first CDN URL");
-                return cdnUrls[0];
-              };
-
-              // Use the first URL while the check happens in the background
-              getWorkingUrl();
-              return cdnUrls[0];
+              }
+              
+              // If all URLs fail, throw an error
+              throw new Error("Unable to load FaceMesh resources from any CDN");
             },
           });
 
@@ -316,7 +305,6 @@ const Index = () => {
             faceMeshRef.current = faceMeshInstance;
           } catch (error) {
             console.error("Error initializing FaceMesh:", error);
-            // Attempt recovery with a lower performance configuration
             console.log("Attempting recovery with lower performance settings...");
             await faceMeshInstance.setOptions({
               maxNumFaces: 1,
@@ -333,7 +321,7 @@ const Index = () => {
               console.error("Recovery attempt failed:", secondError);
               toast({
                 title: "Face Detection Error",
-                description: "We're having trouble initializing face detection. Please ensure you're using a modern browser and have granted camera permissions if needed.",
+                description: "Face detection initialization failed. Please try refreshing the page.",
                 variant: "destructive",
               });
             }
@@ -341,8 +329,8 @@ const Index = () => {
         } catch (error) {
           console.error("Error during FaceMesh setup:", error);
           toast({
-            title: "Loading Error",
-            description: "Unable to load face detection. Please check your internet connection and try again.",
+            title: "Resource Loading Error",
+            description: "Failed to load required resources. Please refresh the page.",
             variant: "destructive",
           });
         }
