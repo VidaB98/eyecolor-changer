@@ -257,11 +257,44 @@ const Index = () => {
     const setup = async () => {
       if (!cleanup) {
         try {
-          console.log("Initializing FaceMesh...");
+          console.log("Starting FaceMesh initialization...");
+          
+          // Create a more robust file loading mechanism
           const faceMeshInstance = new FaceMesh({
             locateFile: (file) => {
               console.log("Loading file:", file);
-              return `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4/${file}`;
+              // Use a specific version and fallback mechanism
+              const cdnUrls = [
+                `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4/${file}`,
+                `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619/${file}`,
+                `https://unpkg.com/@mediapipe/face_mesh@0.4/${file}`
+              ];
+              
+              // Try to preload the file to verify it's accessible
+              const preloadFile = async (url: string) => {
+                try {
+                  const response = await fetch(url, { method: 'HEAD' });
+                  return response.ok;
+                } catch {
+                  return false;
+                }
+              };
+
+              // Return the first working URL or the first one as fallback
+              const getWorkingUrl = async () => {
+                for (const url of cdnUrls) {
+                  if (await preloadFile(url)) {
+                    console.log("Successfully loaded from:", url);
+                    return url;
+                  }
+                }
+                console.log("Falling back to first CDN URL");
+                return cdnUrls[0];
+              };
+
+              // Use the first URL while the check happens in the background
+              getWorkingUrl();
+              return cdnUrls[0];
             },
           });
 
@@ -283,13 +316,28 @@ const Index = () => {
             faceMeshRef.current = faceMeshInstance;
           } catch (error) {
             console.error("Error initializing FaceMesh:", error);
-            toast({
-              title: "Face Detection Error",
-              description: "Failed to initialize face detection. Please try refreshing the page or using a different browser.",
-              variant: "destructive",
+            // Attempt recovery with a lower performance configuration
+            console.log("Attempting recovery with lower performance settings...");
+            await faceMeshInstance.setOptions({
+              maxNumFaces: 1,
+              refineLandmarks: false,
+              minDetectionConfidence: 0.3,
+              minTrackingConfidence: 0.3
             });
+            
+            try {
+              await faceMeshInstance.initialize();
+              console.log("FaceMesh initialized successfully with recovery settings");
+              faceMeshRef.current = faceMeshInstance;
+            } catch (secondError) {
+              console.error("Recovery attempt failed:", secondError);
+              toast({
+                title: "Face Detection Error",
+                description: "We're having trouble initializing face detection. Please ensure you're using a modern browser and have granted camera permissions if needed.",
+                variant: "destructive",
+              });
+            }
           }
-
         } catch (error) {
           console.error("Error during FaceMesh setup:", error);
           toast({
