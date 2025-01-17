@@ -30,8 +30,8 @@ const Index = () => {
 
     const recordedChunks: Blob[] = [];
     const mediaRecorder = new MediaRecorder(mediaStreamRef.current, {
-      mimeType: 'video/webm',
-      videoBitsPerSecond: 8000000 // Increased bitrate for better quality
+      mimeType: 'video/webm;codecs=vp8,opus',
+      videoBitsPerSecond: 2500000 // Adjusted for better compatibility
     });
 
     mediaRecorder.ondataavailable = (event) => {
@@ -41,11 +41,13 @@ const Index = () => {
     };
 
     mediaRecorder.onstop = () => {
-      const blob = new Blob(recordedChunks, { type: 'video/webm' });
+      const blob = new Blob(recordedChunks, { 
+        type: 'video/webm;codecs=vp8,opus' 
+      });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = 'video.webm'; // Changed to .webm extension
+      a.download = 'video.webm';
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
