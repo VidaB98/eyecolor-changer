@@ -33,7 +33,7 @@ const Index = () => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const outputVideoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [selectedColor, setSelectedColor] = useState<string>("#8B4513");
+  const [selectedColor, setSelectedColor] = useState<string>(predefinedColors[0].value);
   const [isProcessing, setIsProcessing] = useState(false);
   const { toast } = useToast();
   const faceMeshRef = useRef<faceMesh.FaceMesh | null>(null);
