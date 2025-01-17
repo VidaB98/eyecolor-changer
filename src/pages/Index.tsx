@@ -165,17 +165,15 @@ const Index = () => {
         const leftEyeOpen = isEyeOpen(landmarks, leftEyeVertical);
         const rightEyeOpen = isEyeOpen(landmarks, rightEyeVertical);
 
-        // Iris landmarks
         const leftIrisCenter = 468;
         const rightIrisCenter = 473;
         const leftIrisBoundary = [469, 470, 471, 472];
         const rightIrisBoundary = [474, 475, 476, 477];
 
-        // Use destination-in to only color the iris area
         ctx.fillStyle = selectedColor;
         ctx.strokeStyle = selectedColor;
-        ctx.globalCompositeOperation = "source-over";
-        ctx.globalAlpha = 0.5;
+        ctx.globalCompositeOperation = "soft-light";
+        ctx.globalAlpha = 0.7;
 
         const drawIris = (centerPoint: number, boundaryPoints: number[], isOpen: boolean) => {
           if (!isOpen) return;
@@ -183,13 +181,12 @@ const Index = () => {
           const centerX = landmarks[centerPoint].x * canvas.width;
           const centerY = landmarks[centerPoint].y * canvas.height;
 
-          // Calculate average radius from boundary points
           const radii = boundaryPoints.map(point => {
             const dx = landmarks[point].x * canvas.width - centerX;
             const dy = landmarks[point].y * canvas.height - centerY;
             return Math.hypot(dx, dy);
           });
-          const radius = (Math.min(...radii) * 0.9); // Slightly reduce radius to avoid coloring eyelashes
+          const radius = radii.reduce((a, b) => a + b, 0) / radii.length;
 
           ctx.beginPath();
           ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
