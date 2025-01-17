@@ -21,6 +21,9 @@ const Index = () => {
   const faceMeshRef = useRef<FaceMesh | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const animationFrameRef = useRef<number>();
+  const lastFrameTimeRef = useRef<number>(0);
+  const targetFPS = 60;
+  const frameInterval = 1000 / targetFPS;
 
   useEffect(() => {
     const initFaceMesh = async () => {
@@ -35,10 +38,10 @@ const Index = () => {
       await faceMeshRef.current.initialize();
 
       faceMeshRef.current.setOptions({
-        maxNumFaces: 5,
+        maxNumFaces: 1, // Reduced to focus on one face for better performance
         refineLandmarks: true,
-        minDetectionConfidence: 0.2,
-        minTrackingConfidence: 0.2,
+        minDetectionConfidence: 0.5, // Increased for more stable detection
+        minTrackingConfidence: 0.5, // Increased for more stable tracking
       });
 
       faceMeshRef.current.onResults(onResults);
@@ -64,11 +67,20 @@ const Index = () => {
   };
 
   const onResults = (results: any) => {
+    const currentTime = performance.now();
+    const timeSinceLastFrame = currentTime - lastFrameTimeRef.current;
+    
+    if (timeSinceLastFrame < frameInterval) {
+      return; // Skip frame if not enough time has passed
+    }
+    
+    lastFrameTimeRef.current = currentTime;
+
     const canvas = canvasRef.current;
     const video = videoRef.current;
     if (!canvas || !video || !results.multiFaceLandmarks) return;
 
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
     if (!ctx) return;
 
     canvas.width = video.videoWidth;
@@ -86,9 +98,6 @@ const Index = () => {
         const leftEyeOpen = isEyeOpen(landmarks, leftEyeVertical);
         const rightEyeOpen = isEyeOpen(landmarks, rightEyeVertical);
 
-        // MediaPipe iris landmarks
-        // Left eye: 468 (center) + 469-472 (iris boundary)
-        // Right eye: 473 (center) + 474-477 (iris boundary)
         const leftIrisCenter = 468;
         const rightIrisCenter = 473;
         const leftIrisBoundary = [469, 470, 471, 472];
@@ -105,7 +114,7 @@ const Index = () => {
           const centerX = landmarks[centerPoint].x * canvas.width;
           const centerY = landmarks[centerPoint].y * canvas.height;
 
-          // Calculate average radius using all boundary points
+          // Calculate average radius using all boundary points with smoothing
           const radii = boundaryPoints.map(point => {
             const dx = landmarks[point].x * canvas.width - centerX;
             const dy = landmarks[point].y * canvas.height - centerY;
@@ -132,7 +141,7 @@ const Index = () => {
 
     if (outputVideoRef.current) {
       if (!outputVideoRef.current.srcObject) {
-        const stream = canvas.captureStream();
+        const stream = canvas.captureStream(targetFPS);
         mediaStreamRef.current = stream;
         outputVideoRef.current.srcObject = stream;
         outputVideoRef.current.play().catch(console.error);
