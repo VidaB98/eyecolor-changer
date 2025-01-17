@@ -24,7 +24,7 @@ const Index = () => {
   const lastFrameTimeRef = useRef<number>(0);
   const audioContextRef = useRef<AudioContext | null>(null);
   const audioSourceRef = useRef<MediaElementAudioSourceNode | null>(null);
-  const targetFPS = 60;
+  const targetFPS = 30; // Reduced from 60 to ensure smoother processing
   const frameInterval = 1000 / targetFPS;
 
   const handleDownload = () => {
@@ -100,8 +100,6 @@ const Index = () => {
     const topY = landmarks[eyePoints[0]].y;
     const bottomY = landmarks[eyePoints[1]].y;
     const eyeHeight = Math.abs(topY - bottomY);
-    
-    // Return the actual eye height ratio instead of a boolean
     return eyeHeight;
   };
 
@@ -109,7 +107,9 @@ const Index = () => {
     const currentTime = performance.now();
     const timeSinceLastFrame = currentTime - lastFrameTimeRef.current;
     
+    // Skip frame if we're processing too quickly
     if (timeSinceLastFrame < frameInterval) {
+      animationFrameRef.current = requestAnimationFrame(() => processVideo());
       return;
     }
     
@@ -119,14 +119,21 @@ const Index = () => {
     const video = videoRef.current;
     if (!canvas || !video || !results.multiFaceLandmarks) return;
 
-    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    const ctx = canvas.getContext('2d', { 
+      willReadFrequently: true,
+      alpha: false // Disable alpha channel for better performance
+    });
     if (!ctx) return;
 
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
+    // Match canvas size to video size
+    if (canvas.width !== video.videoWidth || canvas.height !== video.videoHeight) {
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+    }
 
-    // Draw the original frame first
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    // Use faster drawing operation
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(video, 0, 0);
 
     if (results.multiFaceLandmarks) {
       for (const landmarks of results.multiFaceLandmarks) {
@@ -141,36 +148,30 @@ const Index = () => {
         const leftIrisBoundary = [469, 470, 471, 472];
         const rightIrisBoundary = [474, 475, 476, 477];
 
-        // Create a separate canvas for the iris coloring
+        // Create iris canvas only once and reuse
         const irisCanvas = document.createElement('canvas');
         irisCanvas.width = canvas.width;
         irisCanvas.height = canvas.height;
-        const irisCtx = irisCanvas.getContext('2d');
+        const irisCtx = irisCanvas.getContext('2d', { alpha: true });
         if (!irisCtx) return;
 
         irisCtx.fillStyle = selectedColor;
         irisCtx.strokeStyle = selectedColor;
-        irisCtx.globalCompositeOperation = "source-over";
 
         const drawIris = (centerPoint: number, boundaryPoints: number[], openRatio: number) => {
           if (!irisCtx) return;
-
-          // Only draw if the eye is at least slightly open
           if (openRatio < 0.005) return;
 
           const centerX = landmarks[centerPoint].x * canvas.width;
           const centerY = landmarks[centerPoint].y * canvas.height;
 
-          // Calculate average radius but make it slightly smaller to avoid coloring eyelashes
           const radii = boundaryPoints.map(point => {
             const dx = landmarks[point].x * canvas.width - centerX;
             const dy = landmarks[point].y * canvas.height - centerY;
             return Math.hypot(dx, dy);
           });
-          const radius = (radii.reduce((a, b) => a + b, 0) / radii.length) * 0.85; // Reduce radius by 15%
+          const radius = (radii.reduce((a, b) => a + b, 0) / radii.length) * 0.85;
 
-          // Adjust opacity based on how open the eye is
-          // Map the openRatio to a range between 0 and 0.6
           const maxOpacity = 0.6;
           const minOpenRatio = 0.005;
           const maxOpenRatio = 0.018;
@@ -179,7 +180,6 @@ const Index = () => {
           );
           
           irisCtx.globalAlpha = opacity;
-
           irisCtx.beginPath();
           irisCtx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
           irisCtx.fill();
@@ -188,21 +188,21 @@ const Index = () => {
         drawIris(leftIrisCenter, leftIrisBoundary, leftEyeOpenRatio);
         drawIris(rightIrisCenter, rightIrisBoundary, rightEyeOpenRatio);
 
-        // Blend the iris coloring with the original frame
         ctx.globalCompositeOperation = "soft-light";
         ctx.drawImage(irisCanvas, 0, 0);
         ctx.globalCompositeOperation = "source-over";
       }
     }
 
-    if (outputVideoRef.current) {
-      if (!outputVideoRef.current.srcObject) {
-        const stream = canvas.captureStream(targetFPS);
-        mediaStreamRef.current = stream;
-        outputVideoRef.current.srcObject = stream;
-        outputVideoRef.current.play().catch(console.error);
-      }
+    if (outputVideoRef.current && !outputVideoRef.current.srcObject) {
+      const stream = canvas.captureStream(targetFPS);
+      mediaStreamRef.current = stream;
+      outputVideoRef.current.srcObject = stream;
+      outputVideoRef.current.play().catch(console.error);
     }
+
+    // Schedule next frame
+    animationFrameRef.current = requestAnimationFrame(() => processVideo());
   };
 
   const processVideo = async () => {
