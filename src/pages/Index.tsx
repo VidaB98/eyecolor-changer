@@ -45,7 +45,7 @@ const Index = () => {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = 'processed-video.mp4';
+      a.download = 'video.mp4';
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
