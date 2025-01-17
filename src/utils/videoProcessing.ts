@@ -18,7 +18,9 @@ export const drawIris = (
   selectedColor: string
 ) => {
   if (!irisCtx) return;
-  if (openRatio < 0.005) return;
+  
+  // Skip drawing if the eye is nearly closed (threshold increased for better detection)
+  if (openRatio < 0.015) return;
 
   const centerX = landmarks[centerPoint].x * canvas.width;
   const centerY = landmarks[centerPoint].y * canvas.height;
@@ -30,7 +32,6 @@ export const drawIris = (
   });
   const radius = (radii.reduce((a, b) => a + b, 0) / radii.length) * 0.85;
 
-  // Set a fixed opacity of 0.7 (70%)
   irisCtx.globalAlpha = 0.7;
   irisCtx.fillStyle = selectedColor;
   irisCtx.strokeStyle = selectedColor;
