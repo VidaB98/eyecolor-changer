@@ -18,12 +18,16 @@ const Index = () => {
 
   useEffect(() => {
     const initFaceMesh = async () => {
+      if (typeof window === 'undefined') return;
+      
       // Create a new FaceMesh instance
       const faceMesh = new FaceMesh({
         locateFile: (file) => {
-          return `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`;
+          return `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619/${file}`;
         },
       });
+
+      await faceMesh.initialize();
 
       faceMesh.setOptions({
         maxNumFaces: 1,
