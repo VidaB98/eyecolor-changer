@@ -274,9 +274,10 @@ const Index = () => {
 
   const initFaceMesh = async () => {
     try {
-      // Wait for the page to fully load before initializing
-      if (document.readyState !== 'complete') {
-        await new Promise(resolve => window.addEventListener('load', resolve));
+      // Clear any existing instance
+      if (faceMeshRef.current) {
+        await faceMeshRef.current.close();
+        faceMeshRef.current = null;
       }
 
       const { FaceMesh } = await import('@mediapipe/face_mesh');
@@ -308,19 +309,28 @@ const Index = () => {
       console.log("FaceMesh initialized successfully");
     } catch (error) {
       console.error("Error initializing FaceMesh:", error);
-      toast({
-        title: "Error",
-        description: "Failed to initialize face detection. Please try refreshing the page.",
-        variant: "destructive",
-      });
+      // Wait a bit and retry initialization
+      setTimeout(() => {
+        if (!faceMeshRef.current) {
+          initFaceMesh();
+        }
+      }, 1000);
     }
   };
 
   useEffect(() => {
-    // Initialize FaceMesh when component mounts
-    initFaceMesh();
+    let mounted = true;
+
+    const init = async () => {
+      if (mounted) {
+        await initFaceMesh();
+      }
+    };
+
+    init();
 
     return () => {
+      mounted = false;
       if (mediaStreamRef.current) {
         mediaStreamRef.current.getTracks().forEach(track => track.stop());
       }
@@ -334,6 +344,10 @@ const Index = () => {
       if (audioContextRef.current) {
         audioContextRef.current.close();
         audioContextRef.current = null;
+      }
+      if (faceMeshRef.current) {
+        faceMeshRef.current.close();
+        faceMeshRef.current = null;
       }
     };
   }, []);
