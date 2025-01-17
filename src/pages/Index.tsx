@@ -35,16 +35,19 @@ const Index = () => {
   const frameInterval = 1000 / targetFPS;
 
   useEffect(() => {
-    let cleanup = false;
-
     const initializeFaceMesh = async () => {
       try {
+        // Clear any previous error state
+        setInitError(null);
+        
+        // Create new FaceMesh instance with explicit CDN URL
         const faceMeshInstance = new FaceMesh({
           locateFile: (file) => {
-            return `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`;
+            return `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619/${file}`;
           },
         });
 
+        // Configure FaceMesh settings
         await faceMeshInstance.setOptions({
           maxNumFaces: 1,
           refineLandmarks: true,
@@ -52,23 +55,27 @@ const Index = () => {
           minTrackingConfidence: 0.5
         });
 
+        // Set up results handler
         faceMeshInstance.onResults(onResults);
 
-        if (!cleanup) {
-          await faceMeshInstance.initialize();
-          faceMeshRef.current = faceMeshInstance;
-          setInitError(null);
-        }
+        // Initialize FaceMesh
+        await faceMeshInstance.initialize();
+        
+        // Store the instance in ref
+        faceMeshRef.current = faceMeshInstance;
+        
+        console.log("FaceMesh initialized successfully");
       } catch (error) {
         console.error("Error during FaceMesh setup:", error);
-        setInitError("Failed to initialize face detection. Please refresh the page.");
+        setInitError("Failed to initialize face detection. Please refresh the page and ensure you're using a modern browser.");
       }
     };
 
+    // Initialize immediately
     initializeFaceMesh();
 
+    // Cleanup function
     return () => {
-      cleanup = true;
       if (faceMeshRef.current) {
         faceMeshRef.current.close();
       }
@@ -85,7 +92,7 @@ const Index = () => {
         audioContextRef.current.close();
       }
     };
-  }, [toast]);
+  }, []);
 
   const processVideo = async () => {
     if (!videoRef.current || !faceMeshRef.current) {
@@ -229,6 +236,7 @@ const Index = () => {
           const canvas = canvasRef.current as ExtendedHTMLCanvasElement;
           let stream: MediaStream | null = null;
           
+          // Try different methods to capture stream
           if (canvas.captureStream) {
             stream = canvas.captureStream(30);
           } else if (canvas.webkitCaptureStream) {
