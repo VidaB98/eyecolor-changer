@@ -6,6 +6,7 @@ import { Card } from "@/components/ui/card";
 import { Upload, Download } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { FaceMesh } from "@mediapipe/face_mesh";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 
 const predefinedColors = [
   { name: "Brown", value: "#8B4513" },
@@ -232,13 +233,19 @@ const Index = () => {
   };
 
   const processVideo = async () => {
-    if (!videoRef.current || !faceMeshRef.current) return;
+    if (!videoRef.current || !faceMeshRef.current) {
+      toast({
+        title: "Error",
+        description: "Face detection is not ready. Please wait a moment and try again.",
+        variant: "destructive",
+      });
+      return;
+    }
 
     setIsProcessing(true);
     try {
       await faceMeshRef.current.send({ image: videoRef.current });
       
-      // Continue processing if video is still playing
       if (!videoRef.current.paused && !videoRef.current.ended) {
         animationFrameRef.current = requestAnimationFrame(processVideo);
       } else {
@@ -248,8 +255,8 @@ const Index = () => {
       console.error("Error processing video:", error);
       setIsProcessing(false);
       toast({
-        title: "Error",
-        description: "Failed to process video",
+        title: "Processing Error",
+        description: "An error occurred while processing the video. Please try again.",
         variant: "destructive",
       });
     }
@@ -297,50 +304,62 @@ const Index = () => {
       
       // Define CDN bases with version and fallbacks
       const cdnBases = [
-        'https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619',
-        'https://unpkg.com/@mediapipe/face_mesh@0.4.1633559619',
-        'https://www.gstatic.com/mediapipe/face_mesh'
+        'https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619/',
+        'https://unpkg.com/@mediapipe/face_mesh@0.4.1633559619/',
+        'https://www.gstatic.com/mediapipe/face_mesh/'
       ];
 
       let faceMeshInstance = null;
-      let successfulCDN = '';
+      let loadError = null;
 
       // Try each CDN until one works
       for (const baseUrl of cdnBases) {
         try {
-          // First try to load the main script
-          const scriptResponse = await fetch(`${baseUrl}/face_mesh.js`);
-          if (!scriptResponse.ok) {
-            console.log(`Failed to load script from ${baseUrl}`);
-            continue;
-          }
-
-          // Then try to load the WASM file
-          const wasmResponse = await fetch(`${baseUrl}/face_mesh_solution_packed_assets_loader.js`);
-          if (!wasmResponse.ok) {
-            console.log(`Failed to load WASM from ${baseUrl}`);
+          console.log(`Attempting to load from ${baseUrl}...`);
+          
+          // Test if we can access the CDN
+          const testResponse = await fetch(`${baseUrl}face_mesh.js`);
+          if (!testResponse.ok) {
+            console.log(`Failed to access ${baseUrl}`);
             continue;
           }
 
           faceMeshInstance = new FaceMesh({
             locateFile: (file) => {
-              const url = `${baseUrl}/${file}`;
-              console.log(`Loading file: ${url}`);
-              return url;
+              console.log(`Loading file: ${baseUrl}${file}`);
+              return `${baseUrl}${file}`;
             }
           });
-          
-          successfulCDN = baseUrl;
-          console.log(`Successfully created FaceMesh using ${baseUrl}`);
-          break;
+
+          // Test loading critical assets
+          const criticalAssets = [
+            'face_mesh_solution_packed_assets.data',
+            'face_mesh_solution_simd_wasm_bin.wasm'
+          ];
+
+          const assetTests = await Promise.all(
+            criticalAssets.map(async (asset) => {
+              const response = await fetch(`${baseUrl}${asset}`);
+              return response.ok;
+            })
+          );
+
+          if (assetTests.every(result => result)) {
+            console.log(`Successfully loaded assets from ${baseUrl}`);
+            break;
+          } else {
+            console.log(`Some assets failed to load from ${baseUrl}`);
+            continue;
+          }
         } catch (e) {
-          console.log(`Failed to create FaceMesh with ${baseUrl}:`, e);
+          console.log(`Error with ${baseUrl}:`, e);
+          loadError = e;
           continue;
         }
       }
 
       if (!faceMeshInstance) {
-        throw new Error("Failed to create FaceMesh with any CDN");
+        throw new Error(loadError || "Failed to initialize face detection");
       }
 
       console.log("Setting FaceMesh options...");
@@ -355,36 +374,6 @@ const Index = () => {
       faceMeshInstance.onResults(onResults);
 
       console.log("Initializing FaceMesh...");
-      
-      // Required assets to preload
-      const requiredAssets = [
-        'face_mesh_solution_packed_assets.data',
-        'face_mesh_solution_packed_assets_loader.js',
-        'face_mesh_solution_simd_wasm_bin.js',
-        'face_mesh_solution_simd_wasm_bin.wasm',
-        'face_mesh.binarypb'
-      ];
-
-      // Pre-fetch all required assets
-      await Promise.all(
-        requiredAssets.map(async (asset) => {
-          try {
-            const response = await fetch(`${successfulCDN}/${asset}`);
-            if (!response.ok) {
-              console.log(`Retrying ${asset} with fallback...`);
-              // Try fallback filename if original fails
-              const fallbackResponse = await fetch(`${successfulCDN}/${asset.replace('_solution_simd', '')}`);
-              if (!fallbackResponse.ok) {
-                throw new Error(`Failed to load ${asset}`);
-              }
-            }
-          } catch (error) {
-            console.error(`Failed to load asset ${asset}:`, error);
-            throw error;
-          }
-        })
-      );
-
       await faceMeshInstance.initialize();
       console.log("FaceMesh initialized successfully!");
       faceMeshRef.current = faceMeshInstance;
@@ -467,7 +456,10 @@ const Index = () => {
                   controls
                   className="w-full rounded-lg"
                   playsInline
-                  onPlay={() => processVideo()}
+                  onPlay={() => {
+                    console.log("Video started playing");
+                    processVideo().catch(console.error);
+                  }}
                 />
               </div>
               <div className="space-y-2">
