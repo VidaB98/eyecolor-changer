@@ -347,7 +347,6 @@ const Index = () => {
           description: "Failed to initialize face detection. Please try refreshing the page.",
           variant: "destructive",
         });
-        // Retry initialization after a delay
         setTimeout(() => {
           if (mountedRef.current && !faceMeshRef.current) {
             initFaceMesh();
@@ -453,4 +452,3 @@ const Index = () => {
 };
 
 export default Index;
-
