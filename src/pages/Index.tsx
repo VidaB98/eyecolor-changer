@@ -30,7 +30,7 @@ const Index = () => {
 
     const recordedChunks: Blob[] = [];
     const mediaRecorder = new MediaRecorder(mediaStreamRef.current, {
-      mimeType: 'video/mp4;codecs=avc1.42E01E,mp4a.40.2',
+      mimeType: 'video/mp4;codecs=avc1.42E01E,mp3',
       videoBitsPerSecond: 2500000 // 2.5 Mbps for good quality
     });
 
@@ -42,7 +42,7 @@ const Index = () => {
 
     mediaRecorder.onstop = () => {
       const blob = new Blob(recordedChunks, { 
-        type: 'video/mp4;codecs=avc1.42E01E,mp4a.40.2'
+        type: 'video/mp4;codecs=avc1.42E01E,mp3'
       });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
