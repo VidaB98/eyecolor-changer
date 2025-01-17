@@ -106,7 +106,6 @@ const Index = () => {
     const currentTime = performance.now();
     const timeSinceLastFrame = currentTime - lastFrameTimeRef.current;
     
-    // Skip frame if we're processing too quickly
     if (timeSinceLastFrame < frameInterval) {
       animationFrameRef.current = requestAnimationFrame(() => processVideo());
       return;
@@ -123,7 +122,7 @@ const Index = () => {
 
     const ctx = canvas.getContext('2d', { 
       willReadFrequently: true,
-      alpha: false // Disable alpha channel for better performance
+      alpha: false
     });
     if (!ctx) {
       setIsProcessing(false);
@@ -136,7 +135,6 @@ const Index = () => {
       canvas.height = video.videoHeight;
     }
 
-    // Use faster drawing operation
     ctx.imageSmoothingEnabled = false;
     ctx.drawImage(video, 0, 0);
 
@@ -153,7 +151,6 @@ const Index = () => {
         const leftIrisBoundary = [469, 470, 471, 472];
         const rightIrisBoundary = [474, 475, 476, 477];
 
-        // Create iris canvas only once and reuse
         const irisCanvas = document.createElement('canvas');
         irisCanvas.width = canvas.width;
         irisCanvas.height = canvas.height;
@@ -206,8 +203,12 @@ const Index = () => {
       outputVideoRef.current.play().catch(console.error);
     }
 
-    // Schedule next frame
-    animationFrameRef.current = requestAnimationFrame(() => processVideo());
+    // Only set isProcessing to false if video has ended
+    if (videoRef.current && (videoRef.current.ended || videoRef.current.paused)) {
+      setIsProcessing(false);
+    } else {
+      animationFrameRef.current = requestAnimationFrame(() => processVideo());
+    }
   };
 
   const processVideo = async () => {
@@ -216,14 +217,12 @@ const Index = () => {
       return;
     }
 
-    setIsProcessing(true);
     try {
       await faceMeshRef.current.send({ image: videoRef.current });
       if (videoRef.current.paused || videoRef.current.ended) {
         setIsProcessing(false);
         return;
       }
-      animationFrameRef.current = requestAnimationFrame(() => processVideo());
     } catch (error) {
       console.error("Error processing video:", error);
       setIsProcessing(false);
@@ -275,7 +274,6 @@ const Index = () => {
 
   const initFaceMesh = async () => {
     try {
-      // First, dynamically import the FaceMesh class
       const { FaceMesh } = await import('@mediapipe/face_mesh');
       
       const faceMesh = new FaceMesh({
