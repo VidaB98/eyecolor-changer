@@ -22,17 +22,31 @@ const Index = () => {
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const animationFrameRef = useRef<number>();
   const lastFrameTimeRef = useRef<number>(0);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const audioSourceRef = useRef<MediaElementAudioSourceNode | null>(null);
   const targetFPS = 60;
   const frameInterval = 1000 / targetFPS;
 
   const handleDownload = () => {
     if (!outputVideoRef.current || !mediaStreamRef.current || !videoRef.current) return;
 
-    const audioContext = new AudioContext();
-    const audioSource = audioContext.createMediaElementSource(videoRef.current);
-    const audioDestination = audioContext.createMediaStreamDestination();
-    audioSource.connect(audioDestination);
-    audioSource.connect(audioContext.destination);
+    // Create AudioContext only if it doesn't exist
+    if (!audioContextRef.current) {
+      audioContextRef.current = new AudioContext();
+    }
+
+    // Create AudioSource only if it doesn't exist
+    if (!audioSourceRef.current && audioContextRef.current) {
+      audioSourceRef.current = audioContextRef.current.createMediaElementSource(videoRef.current);
+    }
+
+    const audioDestination = audioContextRef.current.createMediaStreamDestination();
+    
+    // Connect the audio source to both the destination and audio context destination
+    if (audioSourceRef.current) {
+      audioSourceRef.current.connect(audioDestination);
+      audioSourceRef.current.connect(audioContextRef.current.destination);
+    }
 
     const combinedStream = new MediaStream([
       ...mediaStreamRef.current.getVideoTracks(),
@@ -62,7 +76,6 @@ const Index = () => {
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-      audioContext.close();
 
       toast({
         title: "Success",
@@ -80,50 +93,8 @@ const Index = () => {
     setTimeout(() => {
       mediaRecorder.stop();
       videoRef.current?.pause();
-    }, videoRef.current.duration * 1000); // Use the original video duration
+    }, videoRef.current.duration * 1000);
   };
-
-  useEffect(() => {
-    const initFaceMesh = async () => {
-      try {
-        const faceMesh = new FaceMesh({
-          locateFile: (file) => {
-            return `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`;
-          }
-        });
-
-        await faceMesh.setOptions({
-          maxNumFaces: 1,
-          refineLandmarks: true,
-          minDetectionConfidence: 0.5,
-          minTrackingConfidence: 0.5
-        });
-
-        await faceMesh.initialize();
-        
-        faceMesh.onResults(onResults);
-        faceMeshRef.current = faceMesh;
-      } catch (error) {
-        console.error("Error initializing FaceMesh:", error);
-        toast({
-          title: "Error",
-          description: "Failed to initialize face detection",
-          variant: "destructive",
-        });
-      }
-    };
-
-    initFaceMesh();
-
-    return () => {
-      if (mediaStreamRef.current) {
-        mediaStreamRef.current.getTracks().forEach(track => track.stop());
-      }
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
-      }
-    };
-  }, [toast]);
 
   const isEyeOpen = (landmarks: any, eyePoints: number[]) => {
     const topY = landmarks[eyePoints[0]].y;
@@ -291,6 +262,57 @@ const Index = () => {
       };
     }
   };
+
+  useEffect(() => {
+    const initFaceMesh = async () => {
+      try {
+        const faceMesh = new FaceMesh({
+          locateFile: (file) => {
+            return `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`;
+          }
+        });
+
+        await faceMesh.setOptions({
+          maxNumFaces: 1,
+          refineLandmarks: true,
+          minDetectionConfidence: 0.5,
+          minTrackingConfidence: 0.5
+        });
+
+        await faceMesh.initialize();
+        
+        faceMesh.onResults(onResults);
+        faceMeshRef.current = faceMesh;
+      } catch (error) {
+        console.error("Error initializing FaceMesh:", error);
+        toast({
+          title: "Error",
+          description: "Failed to initialize face detection",
+          variant: "destructive",
+        });
+      }
+    };
+
+    initFaceMesh();
+
+    return () => {
+      if (mediaStreamRef.current) {
+        mediaStreamRef.current.getTracks().forEach(track => track.stop());
+      }
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
+      // Clean up audio context and source
+      if (audioSourceRef.current) {
+        audioSourceRef.current.disconnect();
+        audioSourceRef.current = null;
+      }
+      if (audioContextRef.current) {
+        audioContextRef.current.close();
+        audioContextRef.current = null;
+      }
+    };
+  }, [toast]);
 
   return (
     <div className="container mx-auto p-4">
