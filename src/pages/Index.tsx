@@ -24,24 +24,26 @@ const Index = () => {
   const lastFrameTimeRef = useRef<number>(0);
   const targetFPS = 60;
   const frameInterval = 1000 / targetFPS;
+  const [isRecording, setIsRecording] = useState(false);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
 
   const handleDownload = () => {
     if (!canvasRef.current) return;
 
     const recordedChunks: Blob[] = [];
     const canvasStream = canvasRef.current.captureStream(targetFPS);
-    const mediaRecorder = new MediaRecorder(canvasStream, {
+    mediaRecorderRef.current = new MediaRecorder(canvasStream, {
       mimeType: 'video/webm;codecs=vp8,opus',
       videoBitsPerSecond: 2500000 // 2.5 Mbps for good quality
     });
 
-    mediaRecorder.ondataavailable = (event) => {
+    mediaRecorderRef.current.ondataavailable = (event) => {
       if (event.data.size > 0) {
         recordedChunks.push(event.data);
       }
     };
 
-    mediaRecorder.onstop = () => {
+    mediaRecorderRef.current.onstop = () => {
       const blob = new Blob(recordedChunks, { 
         type: 'video/webm;codecs=vp8,opus'
       });
@@ -58,15 +60,18 @@ const Index = () => {
         title: "Success",
         description: "Video downloaded successfully",
       });
+      setIsRecording(false);
     };
 
     // Start recording
-    mediaRecorder.start();
-    
-    // Record for 3 seconds
-    setTimeout(() => {
-      mediaRecorder.stop();
-    }, 3000);
+    mediaRecorderRef.current.start(1000); // Save data every second
+    setIsRecording(true);
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state === "recording") {
+      mediaRecorderRef.current.stop();
+    }
   };
 
   useEffect(() => {
@@ -321,15 +326,25 @@ const Index = () => {
               {isProcessing ? "Processing..." : "Change Eye Color"}
             </Button>
             
-            <Button
-              onClick={handleDownload}
-              disabled={!outputVideoRef.current?.srcObject}
-              variant="secondary"
-              className="flex gap-2"
-            >
-              <Download className="size-4" />
-              Download
-            </Button>
+            {!isRecording ? (
+              <Button
+                onClick={handleDownload}
+                disabled={!outputVideoRef.current?.srcObject}
+                variant="secondary"
+                className="flex gap-2"
+              >
+                <Download className="size-4" />
+                Start Recording
+              </Button>
+            ) : (
+              <Button
+                onClick={stopRecording}
+                variant="destructive"
+                className="flex gap-2"
+              >
+                Stop Recording
+              </Button>
+            )}
           </div>
         </div>
       </Card>
