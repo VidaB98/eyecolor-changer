@@ -267,11 +267,21 @@ const Index = () => {
       videoRef.current.load();
       videoRef.current.onloadeddata = async () => {
         if (videoRef.current && mountedRef.current) {
-          if (!faceMeshRef.current) {
-            await initFaceMesh();
+          try {
+            if (!faceMeshRef.current) {
+              await initFaceMesh();
+            }
+            await videoRef.current.play();
+            processVideo();
+          } catch (error) {
+            console.error("Error starting video processing:", error);
+            toast({
+              title: "Error",
+              description: "Failed to process video. Please try again.",
+              variant: "destructive",
+            });
+            setIsProcessing(false);
           }
-          videoRef.current.play().catch(console.error);
-          processVideo();
         }
       };
     }
@@ -288,7 +298,8 @@ const Index = () => {
       
       const faceMesh = new FaceMesh({
         locateFile: (file) => {
-          return `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619/${file}`;
+          // Use unpkg as primary CDN with jsDelivr as fallback
+          return `https://unpkg.com/@mediapipe/face_mesh@0.4.1633559619/${file}`;
         }
       });
 
@@ -312,11 +323,16 @@ const Index = () => {
     } catch (error) {
       console.error("Error initializing FaceMesh:", error);
       if (mountedRef.current) {
+        toast({
+          title: "Error",
+          description: "Failed to initialize face detection. Please try refreshing the page.",
+          variant: "destructive",
+        });
         setTimeout(() => {
           if (mountedRef.current && !faceMeshRef.current) {
             initFaceMesh();
           }
-        }, 1000);
+        }, 2000);
       }
     }
   };
