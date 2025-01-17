@@ -98,7 +98,7 @@ const Index = () => {
         ctx.fillStyle = selectedColor;
         ctx.strokeStyle = selectedColor;
         ctx.globalCompositeOperation = "multiply";
-        ctx.globalAlpha = 0.8;
+        ctx.globalAlpha = 0.5; // Changed from 0.8 to 0.5 (50% opacity)
 
         const drawIris = (points: any[], isOpen: boolean) => {
           if (!isOpen) return;
