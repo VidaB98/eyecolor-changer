@@ -287,21 +287,29 @@ const Index = () => {
           </div>
 
           <div className="space-y-4">
-            <video
-              ref={videoRef}
-              controls
-              className="w-full rounded-lg hidden"
-              playsInline
-              onPlay={() => processVideo()}
-            />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Original Video</Label>
+                <video
+                  ref={videoRef}
+                  controls
+                  className="w-full rounded-lg"
+                  playsInline
+                  onPlay={() => processVideo()}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Processed Video</Label>
+                <video
+                  ref={outputVideoRef}
+                  controls
+                  className="w-full rounded-lg"
+                  playsInline
+                  autoPlay
+                />
+              </div>
+            </div>
             <canvas ref={canvasRef} className="hidden" />
-            <video
-              ref={outputVideoRef}
-              controls
-              className="w-full rounded-lg"
-              playsInline
-              autoPlay
-            />
           </div>
 
           <Button
