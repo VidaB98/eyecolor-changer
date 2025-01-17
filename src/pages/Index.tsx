@@ -104,6 +104,8 @@ const Index = () => {
   };
 
   const onResults = (results: any) => {
+    if (!mountedRef.current) return;
+
     const currentTime = performance.now();
     const timeSinceLastFrame = currentTime - lastFrameTimeRef.current;
     
@@ -204,7 +206,6 @@ const Index = () => {
       outputVideoRef.current.play().catch(console.error);
     }
 
-    // Only set isProcessing to false if video has ended
     if (videoRef.current && (videoRef.current.ended || videoRef.current.paused)) {
       setIsProcessing(false);
     } else {
@@ -222,7 +223,6 @@ const Index = () => {
       await faceMeshRef.current.send({ image: videoRef.current });
       if (videoRef.current.paused || videoRef.current.ended) {
         setIsProcessing(false);
-        return;
       }
     } catch (error) {
       console.error("Error processing video:", error);
@@ -248,8 +248,7 @@ const Index = () => {
       return;
     }
 
-    setIsProcessing(true);
-
+    // Clean up previous resources
     if (mediaStreamRef.current) {
       mediaStreamRef.current.getTracks().forEach(track => track.stop());
     }
@@ -260,12 +259,17 @@ const Index = () => {
       cancelAnimationFrame(animationFrameRef.current);
     }
 
+    setIsProcessing(true);
     const videoUrl = URL.createObjectURL(file);
+    
     if (videoRef.current) {
       videoRef.current.src = videoUrl;
       videoRef.current.load();
-      videoRef.current.onloadeddata = () => {
+      videoRef.current.onloadeddata = async () => {
         if (videoRef.current && mountedRef.current) {
+          if (!faceMeshRef.current) {
+            await initFaceMesh();
+          }
           videoRef.current.play().catch(console.error);
           processVideo();
         }
@@ -282,19 +286,14 @@ const Index = () => {
 
       const { FaceMesh } = await import('@mediapipe/face_mesh');
       
-      // Create new instance with specific version
       const faceMesh = new FaceMesh({
         locateFile: (file) => {
           return `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619/${file}`;
         }
       });
 
-      // Wait for initialization before setting options
-      await new Promise(resolve => {
-        faceMesh.onResults(onResults);
-        resolve(true);
-      });
-
+      await faceMesh.initialize();
+      
       await faceMesh.setOptions({
         maxNumFaces: 1,
         refineLandmarks: true,
@@ -302,8 +301,8 @@ const Index = () => {
         minTrackingConfidence: 0.5
       });
 
-      await faceMesh.initialize();
-      
+      faceMesh.onResults(onResults);
+
       if (mountedRef.current) {
         faceMeshRef.current = faceMesh;
         console.log("FaceMesh initialized successfully");
@@ -324,14 +323,7 @@ const Index = () => {
 
   useEffect(() => {
     mountedRef.current = true;
-
-    const init = async () => {
-      if (mountedRef.current) {
-        await initFaceMesh();
-      }
-    };
-
-    init();
+    initFaceMesh();
 
     return () => {
       mountedRef.current = false;
