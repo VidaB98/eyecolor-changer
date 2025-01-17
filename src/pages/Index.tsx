@@ -34,8 +34,6 @@ const Index = () => {
       return;
     }
 
-    setIsProcessing(true);
-
     if (mediaStreamRef.current) {
       mediaStreamRef.current.getTracks().forEach(track => track.stop());
     }
@@ -49,6 +47,7 @@ const Index = () => {
       videoRef.current.load();
       videoRef.current.onloadeddata = () => {
         if (videoRef.current) {
+          setIsProcessing(true);
           videoRef.current.play().catch(console.error);
         }
       };
@@ -108,18 +107,6 @@ const Index = () => {
           </div>
 
           <div className="flex gap-4">
-            <Button
-              onClick={() => {
-                if (videoRef.current && videoRef.current.paused) {
-                  videoRef.current.play().catch(console.error);
-                }
-              }}
-              disabled={isProcessing || !videoRef.current?.src}
-              className="flex-1"
-            >
-              {isProcessing ? "Processing..." : "Change Eye Color"}
-            </Button>
-            
             <VideoDownloader
               videoRef={videoRef}
               outputVideoRef={outputVideoRef}
