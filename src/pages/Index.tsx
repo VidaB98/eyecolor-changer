@@ -44,40 +44,6 @@ const Index = () => {
     }
   };
 
-  const startRecording = () => {
-    if (!canvasRef.current) return;
-
-    const recordedChunks: Blob[] = [];
-    const canvasStream = canvasRef.current.captureStream(targetFPS);
-    mediaRecorderRef.current = new MediaRecorder(canvasStream, {
-      mimeType: 'video/webm;codecs=vp8,opus',
-      videoBitsPerSecond: 2500000 // 2.5 Mbps for good quality
-    });
-
-    mediaRecorderRef.current.ondataavailable = (event) => {
-      if (event.data.size > 0) {
-        recordedChunks.push(event.data);
-      }
-    };
-
-    mediaRecorderRef.current.onstop = () => {
-      const blob = new Blob(recordedChunks, { 
-        type: 'video/webm;codecs=vp8,opus'
-      });
-      setRecordedBlob(blob);
-      setIsRecording(false);
-    };
-
-    mediaRecorderRef.current.start(1000); // Save data every second
-    setIsRecording(true);
-  };
-
-  const stopRecording = () => {
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state === "recording") {
-      mediaRecorderRef.current.stop();
-    }
-  };
-
   useEffect(() => {
     const initFaceMesh = async () => {
       if (typeof window === 'undefined') return;
