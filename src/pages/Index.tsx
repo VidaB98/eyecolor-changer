@@ -233,6 +233,7 @@ const Index = () => {
       videoRef.current.onloadeddata = () => {
         if (videoRef.current) {
           videoRef.current.play().catch(console.error);
+          processVideo(); // Start processing when video is loaded
         }
       };
     }
@@ -240,9 +241,6 @@ const Index = () => {
 
   const handleColorChange = (value: string) => {
     setSelectedColor(value);
-    if (videoRef.current && !videoRef.current.paused) {
-      processVideo();
-    }
   };
 
   return (
@@ -338,8 +336,16 @@ const Index = () => {
           </div>
 
           <Button
-            onClick={() => processVideo()}
-            disabled={isProcessing || !selectedColor}
+            onClick={() => {
+              if (videoRef.current && videoRef.current.paused) {
+                videoRef.current.play().then(() => {
+                  processVideo();
+                }).catch(console.error);
+              } else {
+                processVideo();
+              }
+            }}
+            disabled={isProcessing || !selectedColor || !videoRef.current?.src}
             className="w-full"
           >
             {isProcessing ? "Processing..." : "Change Eye Color"}
