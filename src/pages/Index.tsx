@@ -266,23 +266,43 @@ const Index = () => {
   const initFaceMesh = async () => {
     try {
       console.log("Creating FaceMesh instance...");
-      const faceMesh = new FaceMesh({
-        locateFile: (file) => {
-          console.log(`Loading MediaPipe file: ${file}`);
-          // Try multiple CDNs for better availability
-          const cdnUrls = [
-            `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619/${file}`,
-            `https://unpkg.com/@mediapipe/face_mesh@0.4.1633559619/${file}`,
-            `https://www.gstatic.com/mediapipe/face_mesh/${file}`
-          ];
+      
+      // Define CDN bases once at the top level
+      const cdnBases = [
+        'https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619/',
+        'https://unpkg.com/@mediapipe/face_mesh@0.4.1633559619/',
+        'https://www.gstatic.com/mediapipe/face_mesh/'
+      ];
+
+      let faceMeshInstance = null;
+      let successfulCDN = '';
+
+      // Try creating FaceMesh with each CDN until one works
+      for (const baseUrl of cdnBases) {
+        try {
+          faceMeshInstance = new FaceMesh({
+            locateFile: (file) => {
+              console.log(`Attempting to load ${file} from ${baseUrl}`);
+              return baseUrl + file;
+            }
+          });
           
-          // Return the first CDN URL, if it fails the browser will try the next one
-          return cdnUrls[0];
+          // If we get here, the CDN worked
+          successfulCDN = baseUrl;
+          console.log(`Successfully created FaceMesh using ${baseUrl}`);
+          break;
+        } catch (e) {
+          console.log(`Failed to create FaceMesh with ${baseUrl}, trying next...`);
+          continue;
         }
-      });
+      }
+
+      if (!faceMeshInstance) {
+        throw new Error("Failed to create FaceMesh with any CDN");
+      }
 
       console.log("Setting FaceMesh options...");
-      await faceMesh.setOptions({
+      await faceMeshInstance.setOptions({
         maxNumFaces: 1,
         refineLandmarks: true,
         minDetectionConfidence: 0.5,
@@ -290,54 +310,41 @@ const Index = () => {
       });
 
       console.log("Setting up onResults handler...");
-      faceMesh.onResults(onResults);
+      faceMeshInstance.onResults(onResults);
 
       console.log("Initializing FaceMesh...");
       try {
-        // Preload required assets with fallback URLs
+        // Use the same successful CDN for loading assets
         const assetUrls = [
           ['face_mesh_solution_packed_assets.data', 'face_mesh.data'],
           ['face_mesh_solution_simd_wasm_bin.js', 'face_mesh_simd.js'],
           ['face_mesh_solution_wasm_bin.js', 'face_mesh.js']
         ];
 
-        const cdnBases = [
-          'https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619/',
-          'https://unpkg.com/@mediapipe/face_mesh@0.4.1633559619/',
-          'https://www.gstatic.com/mediapipe/face_mesh/'
-        ];
+        // Preload assets from the CDN that worked
+        await Promise.all(
+          assetUrls.map(([primary, fallback]) =>
+            fetch(successfulCDN + primary)
+              .catch(() => fetch(successfulCDN + fallback))
+          )
+        );
 
-        // Try loading from each CDN until successful
-        for (const base of cdnBases) {
-          try {
-            await Promise.all(
-              assetUrls.map(([primary, fallback]) =>
-                fetch(base + primary).catch(() => fetch(base + fallback))
-              )
-            );
-            break; // If successful, exit the loop
-          } catch (e) {
-            console.log(`Failed to load from ${base}, trying next CDN...`);
-            continue;
-          }
-        }
-
-        await faceMesh.initialize();
+        await faceMeshInstance.initialize();
         console.log("FaceMesh initialized successfully!");
-        faceMeshRef.current = faceMesh;
+        faceMeshRef.current = faceMeshInstance;
       } catch (initError) {
         console.error("Error during face mesh initialization:", initError);
         toast({
-          title: "Face Detection Error",
-          description: "Failed to initialize face detection. Please try using a different browser or check your internet connection.",
+          title: "Initialization Error",
+          description: "There was a problem loading the face detection features. Please refresh the page and try again.",
           variant: "destructive",
         });
       }
     } catch (error) {
       console.error("Error creating or setting up FaceMesh:", error);
       toast({
-        title: "Browser Compatibility Issue",
-        description: "Your browser might not support all required features. Please try using Chrome, Firefox, or Edge.",
+        title: "Loading Error",
+        description: "Unable to load face detection. Please refresh the page or check your internet connection.",
         variant: "destructive",
       });
     }
