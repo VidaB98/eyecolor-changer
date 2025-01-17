@@ -41,7 +41,11 @@ const Index = () => {
       ...audioDestination.stream.getAudioTracks()
     ]);
 
-    const mediaRecorder = new MediaRecorder(combinedStream);
+    const mediaRecorder = new MediaRecorder(combinedStream, {
+      mimeType: 'video/webm;codecs=vp8',
+      videoBitsPerSecond: 8000000 // 8 Mbps for high quality
+    });
+    
     const chunks: BlobPart[] = [];
 
     mediaRecorder.ondataavailable = (e) => {
@@ -51,11 +55,11 @@ const Index = () => {
     };
 
     mediaRecorder.onstop = () => {
-      const blob = new Blob(chunks, { type: 'video/mp4' });
+      const blob = new Blob(chunks, { type: 'video/webm' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = 'processed-video.mp4';
+      a.download = 'processed-video.webm';
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
