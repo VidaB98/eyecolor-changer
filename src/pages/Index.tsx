@@ -5,20 +5,21 @@ import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Upload } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import * as FaceMeshModule from "@mediapipe/face_mesh";
+import { FaceMesh } from "@mediapipe/face_mesh";
 import { drawConnectors } from "@mediapipe/drawing_utils";
 
 const Index = () => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [selectedColor, setSelectedColor] = useState("#ff0000"); // Initialize with red instead of green
+  const [selectedColor, setSelectedColor] = useState("#ff0000");
   const [isProcessing, setIsProcessing] = useState(false);
   const { toast } = useToast();
-  const faceMeshRef = useRef<FaceMeshModule.FaceMesh | null>(null);
+  const faceMeshRef = useRef<FaceMesh | null>(null);
 
   useEffect(() => {
     const initFaceMesh = async () => {
-      const faceMesh = new FaceMeshModule.FaceMesh({
+      // Create a new FaceMesh instance
+      const faceMesh = new FaceMesh({
         locateFile: (file) => {
           return `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`;
         },
@@ -63,7 +64,7 @@ const Index = () => {
           (index) => landmarks[index]
         );
 
-        ctx.fillStyle = selectedColor; // Use the selected color from state
+        ctx.fillStyle = selectedColor;
         ctx.globalCompositeOperation = "overlay";
         ctx.globalAlpha = 0.6;
 
