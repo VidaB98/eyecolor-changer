@@ -13,8 +13,6 @@ const predefinedColors = [
 
 interface ExtendedHTMLCanvasElement extends HTMLCanvasElement {
   captureStream(frameRate?: number): MediaStream;
-  webkitCaptureStream?(frameRate?: number): MediaStream;
-  mozCaptureStream?(frameRate?: number): MediaStream;
 }
 
 const Index = () => {
