@@ -55,7 +55,7 @@ const Index = () => {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = 'processed-video.webm';
+      a.download = 'processed-video.mp4';
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -65,7 +65,7 @@ const Index = () => {
         title: "Success",
         description: "Video downloaded successfully",
       });
-    }, 'image/webm');
+    }, 'video/mp4');
   };
 
   useEffect(() => {
@@ -343,3 +343,4 @@ const Index = () => {
 };
 
 export default Index;
+
