@@ -4,6 +4,7 @@ import { useToast } from "@/hooks/use-toast";
 import { FaceMesh } from "@mediapipe/face_mesh";
 import VideoControls from "@/components/VideoControls";
 import VideoPreview from "@/components/VideoPreview";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { processVideoFrame, isEyeOpen, drawIris } from "@/utils/videoProcessing";
 
 const predefinedColors = [
@@ -21,6 +22,7 @@ const Index = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [selectedColor, setSelectedColor] = useState<string>(predefinedColors[0].value);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [initError, setInitError] = useState<string | null>(null);
   const { toast } = useToast();
   const faceMeshRef = useRef<FaceMesh | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
@@ -32,14 +34,23 @@ const Index = () => {
   const frameInterval = 1000 / targetFPS;
 
   const processVideo = async () => {
-    if (!videoRef.current || !faceMeshRef.current) return;
+    if (!videoRef.current || !faceMeshRef.current) {
+      setInitError("Face detection is not initialized. Please refresh the page.");
+      return;
+    }
     
     setIsProcessing(true);
-    await processVideoFrame(faceMeshRef.current, videoRef.current, canvasRef.current!, selectedColor);
-    setIsProcessing(false);
+    try {
+      await processVideoFrame(faceMeshRef.current, videoRef.current, canvasRef.current!, selectedColor);
+      setIsProcessing(false);
 
-    if (!videoRef.current.paused) {
-      animationFrameRef.current = requestAnimationFrame(() => processVideo());
+      if (!videoRef.current.paused) {
+        animationFrameRef.current = requestAnimationFrame(() => processVideo());
+      }
+    } catch (error) {
+      console.error("Error processing video frame:", error);
+      setInitError("Error processing video. Please refresh and try again.");
+      setIsProcessing(false);
     }
   };
 
@@ -118,82 +129,84 @@ const Index = () => {
     const video = videoRef.current;
     if (!canvas || !video || !results.multiFaceLandmarks) return;
 
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
+    try {
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
 
-    const ctx = canvas.getContext('2d', { willReadFrequently: true });
-    if (!ctx) return;
-
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-    if (results.multiFaceLandmarks) {
-      for (const landmarks of results.multiFaceLandmarks) {
-        const leftEyeVertical = [159, 145];  
-        const rightEyeVertical = [386, 374]; 
-        
-        const leftEyeOpenRatio = isEyeOpen(landmarks, leftEyeVertical);
-        const rightEyeOpenRatio = isEyeOpen(landmarks, rightEyeVertical);
-
-        const leftIrisCenter = 468;
-        const rightIrisCenter = 473;
-        const leftIrisBoundary = [469, 470, 471, 472];
-        const rightIrisBoundary = [474, 475, 476, 477];
-
-        const irisCanvas = document.createElement('canvas');
-        irisCanvas.width = canvas.width;
-        irisCanvas.height = canvas.height;
-        const irisCtx = irisCanvas.getContext('2d');
-        if (!irisCtx) return;
-
-        drawIris(irisCtx, leftIrisCenter, leftIrisBoundary, leftEyeOpenRatio, landmarks, canvas, selectedColor);
-        drawIris(irisCtx, rightIrisCenter, rightIrisBoundary, rightEyeOpenRatio, landmarks, canvas, selectedColor);
-
-        ctx.globalCompositeOperation = "soft-light";
-        ctx.drawImage(irisCanvas, 0, 0);
-        ctx.globalCompositeOperation = "source-over";
+      const ctx = canvas.getContext('2d', { willReadFrequently: true });
+      if (!ctx) {
+        throw new Error("Could not get canvas context");
       }
-    }
 
-    if (outputVideoRef.current) {
-      try {
-        if (!outputVideoRef.current.srcObject) {
-          let stream;
-          const canvas = canvasRef.current as ExtendedHTMLCanvasElement;
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+      if (results.multiFaceLandmarks) {
+        for (const landmarks of results.multiFaceLandmarks) {
+          const leftEyeVertical = [159, 145];  
+          const rightEyeVertical = [386, 374]; 
           
-          try {
-            stream = canvas.captureStream(30);
-          } catch (e) {
-            stream = canvas.webkitCaptureStream?.(30) || canvas.mozCaptureStream?.(30);
+          const leftEyeOpenRatio = isEyeOpen(landmarks, leftEyeVertical);
+          const rightEyeOpenRatio = isEyeOpen(landmarks, rightEyeVertical);
+
+          const leftIrisCenter = 468;
+          const rightIrisCenter = 473;
+          const leftIrisBoundary = [469, 470, 471, 472];
+          const rightIrisBoundary = [474, 475, 476, 477];
+
+          const irisCanvas = document.createElement('canvas');
+          irisCanvas.width = canvas.width;
+          irisCanvas.height = canvas.height;
+          const irisCtx = irisCanvas.getContext('2d');
+          if (!irisCtx) {
+            throw new Error("Could not get iris canvas context");
           }
 
-          if (!stream) {
-            throw new Error("Failed to capture stream from canvas");
-          }
+          drawIris(irisCtx, leftIrisCenter, leftIrisBoundary, leftEyeOpenRatio, landmarks, canvas, selectedColor);
+          drawIris(irisCtx, rightIrisCenter, rightIrisBoundary, rightEyeOpenRatio, landmarks, canvas, selectedColor);
 
-          mediaStreamRef.current = stream;
-          outputVideoRef.current.srcObject = stream;
-          outputVideoRef.current.autoplay = true;
-          outputVideoRef.current.play().catch(error => {
-            console.error("Error playing output video:", error);
-            toast({
-              title: "Playback Error",
-              description: "Unable to play processed video. Please try a different browser.",
-              variant: "destructive",
-            });
-          });
+          ctx.globalCompositeOperation = "soft-light";
+          ctx.drawImage(irisCanvas, 0, 0);
+          ctx.globalCompositeOperation = "source-over";
         }
-      } catch (error) {
-        console.error("Error capturing stream:", error);
-        toast({
-          title: "Stream Error",
-          description: "Unable to process video stream. Please try a different browser.",
-          variant: "destructive",
-        });
       }
+
+      if (outputVideoRef.current) {
+        try {
+          if (!outputVideoRef.current.srcObject) {
+            let stream;
+            const canvas = canvasRef.current as ExtendedHTMLCanvasElement;
+            
+            try {
+              stream = canvas.captureStream(30);
+            } catch (e) {
+              stream = canvas.webkitCaptureStream?.(30) || canvas.mozCaptureStream?.(30);
+            }
+
+            if (!stream) {
+              throw new Error("Failed to capture stream from canvas");
+            }
+
+            mediaStreamRef.current = stream;
+            outputVideoRef.current.srcObject = stream;
+            outputVideoRef.current.autoplay = true;
+            outputVideoRef.current.play().catch(error => {
+              console.error("Error playing output video:", error);
+              setInitError("Unable to play processed video. Please try a different browser.");
+            });
+          }
+        } catch (error) {
+          console.error("Error capturing stream:", error);
+          setInitError("Unable to process video stream. Please try a different browser.");
+        }
+      }
+    } catch (error) {
+      console.error("Error in onResults:", error);
+      setInitError("Error processing video. Please refresh and try again.");
     }
   };
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setInitError(null);
     const file = event.target.files?.[0];
     if (!file) return;
 
@@ -224,11 +237,7 @@ const Index = () => {
 
       videoRef.current.onerror = (e) => {
         console.error("Error loading video:", e);
-        toast({
-          title: "Video Error",
-          description: "Failed to load the video. Please try a different format.",
-          variant: "destructive"
-        });
+        setInitError("Failed to load the video. Please try a different format.");
       };
 
       videoRef.current.onloadeddata = () => {
@@ -236,19 +245,11 @@ const Index = () => {
           if (videoRef.current.canPlayType(file.type)) {
             videoRef.current.play().catch(error => {
               console.error("Error playing video:", error);
-              toast({
-                title: "Playback Error",
-                description: "Unable to play the video. Please try a different browser or video format.",
-                variant: "destructive"
-              });
+              setInitError("Unable to play the video. Please try a different browser or video format.");
             });
             processVideo();
           } else {
-            toast({
-              title: "Format Error",
-              description: "This video format is not supported by your browser. Please try a different format.",
-              variant: "destructive"
-            });
+            setInitError("This video format is not supported by your browser. Please try a different format.");
           }
         }
       };
@@ -265,24 +266,7 @@ const Index = () => {
           
           const faceMeshInstance = new FaceMesh({
             locateFile: (file) => {
-              console.log("Loading file:", file);
               const baseUrl = "https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619";
-              
-              setTimeout(() => {
-                const url = `${baseUrl}/${file}`;
-                fetch(url, { method: 'HEAD' })
-                  .then(response => {
-                    if (response.ok) {
-                      console.log("Successfully verified resource:", url);
-                    } else {
-                      console.error("Resource verification failed:", url);
-                    }
-                  })
-                  .catch(error => {
-                    console.error("Resource loading error:", error);
-                  });
-              }, 0);
-
               return `${baseUrl}/${file}`;
             },
           });
@@ -305,19 +289,11 @@ const Index = () => {
             faceMeshRef.current = faceMeshInstance;
           } catch (error) {
             console.error("Error initializing FaceMesh:", error);
-            toast({
-              title: "Initialization Error",
-              description: "Failed to initialize face detection. Please refresh the page.",
-              variant: "destructive",
-            });
+            setInitError("Failed to initialize face detection. Please refresh the page.");
           }
         } catch (error) {
           console.error("Error during FaceMesh setup:", error);
-          toast({
-            title: "Setup Error",
-            description: "Failed to set up face detection. Please refresh and try again.",
-            variant: "destructive",
-          });
+          setInitError("Failed to set up face detection. Please refresh and try again.");
         }
       }
     };
@@ -350,6 +326,13 @@ const Index = () => {
     <div className="container mx-auto p-4">
       <Card className="p-6 max-w-2xl mx-auto">
         <h1 className="text-2xl font-bold mb-6">Change eye color to brown</h1>
+
+        {initError && (
+          <Alert variant="destructive" className="mb-6">
+            <AlertTitle>Setup Error</AlertTitle>
+            <AlertDescription>{initError}</AlertDescription>
+          </Alert>
+        )}
 
         <div className="space-y-6">
           <VideoControls
