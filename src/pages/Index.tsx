@@ -86,39 +86,44 @@ const Index = () => {
         const leftEyeOpen = isEyeOpen(landmarks, leftEyeVertical);
         const rightEyeOpen = isEyeOpen(landmarks, rightEyeVertical);
 
-        // Iris landmarks (excluding the white part of the eyes)
-        const leftIrisPoints = [474, 475, 476, 477];
-        const rightIrisPoints = [469, 470, 471, 472];
+        // MediaPipe iris landmarks
+        // Left eye: 468 (center) + 469-472 (iris boundary)
+        // Right eye: 473 (center) + 474-477 (iris boundary)
+        const leftIrisCenter = 468;
+        const rightIrisCenter = 473;
+        const leftIrisBoundary = [469, 470, 471, 472];
+        const rightIrisBoundary = [474, 475, 476, 477];
 
         ctx.fillStyle = selectedColor;
         ctx.strokeStyle = selectedColor;
         ctx.globalCompositeOperation = "soft-light";
         ctx.globalAlpha = 0.7;
 
-        const drawIris = (points: number[], isOpen: boolean) => {
+        const drawIris = (centerPoint: number, boundaryPoints: number[], isOpen: boolean) => {
           if (!isOpen) return;
 
-          ctx.beginPath();
-          // Draw a circle using the iris center and points
-          const centerX = landmarks[points[0]].x * canvas.width;
-          const centerY = landmarks[points[0]].y * canvas.height;
-          
-          // Calculate radius based on iris points
-          const radius = Math.hypot(
-            landmarks[points[1]].x * canvas.width - centerX,
-            landmarks[points[1]].y * canvas.height - centerY
-          );
+          const centerX = landmarks[centerPoint].x * canvas.width;
+          const centerY = landmarks[centerPoint].y * canvas.height;
 
+          // Calculate average radius using all boundary points
+          const radii = boundaryPoints.map(point => {
+            const dx = landmarks[point].x * canvas.width - centerX;
+            const dy = landmarks[point].y * canvas.height - centerY;
+            return Math.hypot(dx, dy);
+          });
+          const radius = radii.reduce((a, b) => a + b, 0) / radii.length;
+
+          ctx.beginPath();
           ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
           ctx.fill();
         };
 
         if (leftEyeOpen) {
-          drawIris(leftIrisPoints, leftEyeOpen);
+          drawIris(leftIrisCenter, leftIrisBoundary, leftEyeOpen);
         }
 
         if (rightEyeOpen) {
-          drawIris(rightIrisPoints, rightEyeOpen);
+          drawIris(rightIrisCenter, rightIrisBoundary, rightEyeOpen);
         }
       }
     }
