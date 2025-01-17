@@ -260,30 +260,31 @@ const Index = () => {
           console.log("Starting FaceMesh initialization...");
           
           const faceMeshInstance = new FaceMesh({
-            locateFile: async (file) => {
+            locateFile: (file) => {
               console.log("Loading file:", file);
-              const cdnUrls = [
-                `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4/${file}`,
-                `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619/${file}`,
-                `https://unpkg.com/@mediapipe/face_mesh@0.4/${file}`
-              ];
-              
-              // Try each URL until we find one that works
-              for (const url of cdnUrls) {
-                try {
-                  const response = await fetch(url, { method: 'HEAD' });
-                  if (response.ok) {
-                    console.log("Successfully loaded from:", url);
-                    return url;
+              // Return the first URL, but log attempts to load from fallbacks
+              setTimeout(async () => {
+                const cdnUrls = [
+                  `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4/${file}`,
+                  `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619/${file}`,
+                  `https://unpkg.com/@mediapipe/face_mesh@0.4/${file}`
+                ];
+                
+                for (const url of cdnUrls) {
+                  try {
+                    const response = await fetch(url, { method: 'HEAD' });
+                    if (response.ok) {
+                      console.log("Successfully verified URL:", url);
+                      break;
+                    }
+                  } catch (error) {
+                    console.log(`Failed to load from ${url}:`, error);
                   }
-                } catch (error) {
-                  console.log(`Failed to load from ${url}:`, error);
-                  continue;
                 }
-              }
+              }, 0);
               
-              // If all URLs fail, throw an error
-              throw new Error("Unable to load FaceMesh resources from any CDN");
+              // Always return the first URL synchronously
+              return `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4/${file}`;
             },
           });
 
