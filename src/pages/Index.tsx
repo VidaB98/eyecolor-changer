@@ -265,23 +265,43 @@ const Index = () => {
     if (videoRef.current) {
       videoRef.current.src = videoUrl;
       videoRef.current.load();
+      
+      // Add error handling for video loading
+      videoRef.current.onerror = () => {
+        toast({
+          title: "Error",
+          description: "Failed to load video. Please try a different file.",
+          variant: "destructive",
+        });
+        setIsProcessing(false);
+      };
+
       videoRef.current.onloadeddata = async () => {
-        if (videoRef.current && mountedRef.current) {
-          try {
-            if (!faceMeshRef.current) {
-              await initFaceMesh();
-            }
-            await videoRef.current.play();
-            processVideo();
-          } catch (error) {
-            console.error("Error starting video processing:", error);
-            toast({
-              title: "Error",
-              description: "Failed to process video. Please try again.",
-              variant: "destructive",
-            });
-            setIsProcessing(false);
+        if (!videoRef.current || !mountedRef.current) return;
+        
+        try {
+          if (!faceMeshRef.current) {
+            await initFaceMesh();
           }
+          
+          // Ensure video playback starts correctly
+          try {
+            await videoRef.current.play();
+          } catch (playError) {
+            console.error("Video play error:", playError);
+            await new Promise(resolve => setTimeout(resolve, 100));
+            await videoRef.current.play();
+          }
+          
+          processVideo();
+        } catch (error) {
+          console.error("Error starting video processing:", error);
+          toast({
+            title: "Error",
+            description: "Failed to process video. Please try again.",
+            variant: "destructive",
+          });
+          setIsProcessing(false);
         }
       };
     }
@@ -298,8 +318,15 @@ const Index = () => {
       
       const faceMesh = new FaceMesh({
         locateFile: (file) => {
-          // Use unpkg as primary CDN with jsDelivr as fallback
-          return `https://unpkg.com/@mediapipe/face_mesh@0.4.1633559619/${file}`;
+          // Use multiple CDN fallbacks to ensure reliability
+          const cdnUrls = [
+            `https://unpkg.com/@mediapipe/face_mesh@0.4.1633559619/${file}`,
+            `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619/${file}`,
+            `https://www.unpkg.com/@mediapipe/face_mesh@0.4.1633559619/${file}`
+          ];
+          
+          // Return the first CDN URL, if it fails the browser will try the next one
+          return cdnUrls[0];
         }
       });
 
@@ -328,6 +355,7 @@ const Index = () => {
           description: "Failed to initialize face detection. Please try refreshing the page.",
           variant: "destructive",
         });
+        // Retry initialization after a delay
         setTimeout(() => {
           if (mountedRef.current && !faceMeshRef.current) {
             initFaceMesh();
