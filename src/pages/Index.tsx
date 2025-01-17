@@ -154,11 +154,8 @@ const Index = () => {
         if (!outputVideoRef.current.srcObject) {
           let stream;
           try {
-            // Try standard method first
             stream = canvas.captureStream(30);
           } catch (e) {
-            // Fallback for Safari and other browsers
-            // @ts-ignore: Webkit prefix
             stream = canvas.captureStream?.(30) || canvas.webkitCaptureStream?.(30) || canvas.mozCaptureStream?.(30);
           }
 
@@ -262,29 +259,24 @@ const Index = () => {
           const faceMeshInstance = new FaceMesh({
             locateFile: (file) => {
               console.log("Loading file:", file);
-              // Return the first URL, but log attempts to load from fallbacks
-              setTimeout(async () => {
-                const cdnUrls = [
-                  `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4/${file}`,
-                  `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619/${file}`,
-                  `https://unpkg.com/@mediapipe/face_mesh@0.4/${file}`
-                ];
-                
-                for (const url of cdnUrls) {
-                  try {
-                    const response = await fetch(url, { method: 'HEAD' });
-                    if (response.ok) {
-                      console.log("Successfully verified URL:", url);
-                      break;
-                    }
-                  } catch (error) {
-                    console.log(`Failed to load from ${url}:`, error);
-                  }
-                }
-              }, 0);
+              const baseUrl = "https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619";
               
-              // Always return the first URL synchronously
-              return `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4/${file}`;
+              setTimeout(() => {
+                const url = `${baseUrl}/${file}`;
+                fetch(url, { method: 'HEAD' })
+                  .then(response => {
+                    if (response.ok) {
+                      console.log("Successfully verified resource:", url);
+                    } else {
+                      console.error("Resource verification failed:", url);
+                    }
+                  })
+                  .catch(error => {
+                    console.error("Resource loading error:", error);
+                  });
+              }, 0);
+
+              return `${baseUrl}/${file}`;
             },
           });
 
@@ -306,32 +298,17 @@ const Index = () => {
             faceMeshRef.current = faceMeshInstance;
           } catch (error) {
             console.error("Error initializing FaceMesh:", error);
-            console.log("Attempting recovery with lower performance settings...");
-            await faceMeshInstance.setOptions({
-              maxNumFaces: 1,
-              refineLandmarks: false,
-              minDetectionConfidence: 0.3,
-              minTrackingConfidence: 0.3
+            toast({
+              title: "Initialization Error",
+              description: "Failed to initialize face detection. Please refresh the page.",
+              variant: "destructive",
             });
-            
-            try {
-              await faceMeshInstance.initialize();
-              console.log("FaceMesh initialized successfully with recovery settings");
-              faceMeshRef.current = faceMeshInstance;
-            } catch (secondError) {
-              console.error("Recovery attempt failed:", secondError);
-              toast({
-                title: "Face Detection Error",
-                description: "Face detection initialization failed. Please try refreshing the page.",
-                variant: "destructive",
-              });
-            }
           }
         } catch (error) {
           console.error("Error during FaceMesh setup:", error);
           toast({
-            title: "Resource Loading Error",
-            description: "Failed to load required resources. Please refresh the page.",
+            title: "Setup Error",
+            description: "Failed to set up face detection. Please refresh and try again.",
             variant: "destructive",
           });
         }
