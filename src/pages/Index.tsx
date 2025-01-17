@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Upload } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import * as faceMesh from "@mediapipe/face_mesh";
+import * as F from "@mediapipe/face_mesh";
 import {
   Select,
   SelectContent,
@@ -36,7 +36,7 @@ const Index = () => {
   const [selectedColor, setSelectedColor] = useState<string>(predefinedColors[0].value);
   const [isProcessing, setIsProcessing] = useState(false);
   const { toast } = useToast();
-  const faceMeshRef = useRef<faceMesh.FaceMesh | null>(null);
+  const faceMeshRef = useRef<F.FaceMesh | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const animationFrameRef = useRef<number>();
 
@@ -44,7 +44,7 @@ const Index = () => {
     const initFaceMesh = async () => {
       if (typeof window === 'undefined') return;
       
-      faceMeshRef.current = new faceMesh.FaceMesh({
+      faceMeshRef.current = new F.FaceMesh({
         locateFile: (file) => {
           return `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619/${file}`;
         },
