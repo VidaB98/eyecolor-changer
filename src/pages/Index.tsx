@@ -73,6 +73,13 @@ const Index = () => {
     };
   }, []);
 
+  const isEyeOpen = (landmarks: any, eyePoints: number[]) => {
+    const topY = landmarks[eyePoints[0]].y;
+    const bottomY = landmarks[eyePoints[1]].y;
+    const eyeHeight = Math.abs(topY - bottomY);
+    return eyeHeight > 0.02; // Empirically determined threshold
+  };
+
   const onResults = (results: any) => {
     const canvas = canvasRef.current;
     const video = videoRef.current;
@@ -90,6 +97,12 @@ const Index = () => {
 
     if (results.multiFaceLandmarks) {
       for (const landmarks of results.multiFaceLandmarks) {
+        const leftEyeVertical = [159, 145]; // Top and bottom landmarks
+        const rightEyeVertical = [386, 374]; // Top and bottom landmarks
+        
+        const leftEyeOpen = isEyeOpen(landmarks, leftEyeVertical);
+        const rightEyeOpen = isEyeOpen(landmarks, rightEyeVertical);
+
         const leftIrisPoints = [474, 475, 476, 477].map(
           (index) => landmarks[index]
         );
@@ -122,35 +135,38 @@ const Index = () => {
           );
         };
 
-        const leftCenter = getIrisCenter(leftIrisPoints);
-        const leftRadius = getIrisRadius(leftIrisPoints, leftCenter);
-        ctx.beginPath();
-        ctx.arc(
-          leftCenter.x * canvas.width,
-          leftCenter.y * canvas.height,
-          leftRadius,
-          0,
-          2 * Math.PI
-        );
-        ctx.fill();
+        if (leftEyeOpen) {
+          const leftCenter = getIrisCenter(leftIrisPoints);
+          const leftRadius = getIrisRadius(leftIrisPoints, leftCenter);
+          ctx.beginPath();
+          ctx.arc(
+            leftCenter.x * canvas.width,
+            leftCenter.y * canvas.height,
+            leftRadius,
+            0,
+            2 * Math.PI
+          );
+          ctx.fill();
+        }
 
-        const rightCenter = getIrisCenter(rightIrisPoints);
-        const rightRadius = getIrisRadius(rightIrisPoints, rightCenter);
-        ctx.beginPath();
-        ctx.arc(
-          rightCenter.x * canvas.width,
-          rightCenter.y * canvas.height,
-          rightRadius,
-          0,
-          2 * Math.PI
-        );
-        ctx.fill();
+        if (rightEyeOpen) {
+          const rightCenter = getIrisCenter(rightIrisPoints);
+          const rightRadius = getIrisRadius(rightIrisPoints, rightCenter);
+          ctx.beginPath();
+          ctx.arc(
+            rightCenter.x * canvas.width,
+            rightCenter.y * canvas.height,
+            rightRadius,
+            0,
+            2 * Math.PI
+          );
+          ctx.fill();
+        }
       }
     }
 
     ctx.restore();
 
-    // Update the stream for the output video
     if (outputVideoRef.current) {
       if (!outputVideoRef.current.srcObject) {
         const stream = canvas.captureStream();
@@ -196,7 +212,6 @@ const Index = () => {
       return;
     }
 
-    // Clean up previous resources
     if (mediaStreamRef.current) {
       mediaStreamRef.current.getTracks().forEach(track => track.stop());
     }
