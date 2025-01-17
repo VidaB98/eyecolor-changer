@@ -6,7 +6,6 @@ import { Card } from "@/components/ui/card";
 import { Upload } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import * as faceMesh from "@mediapipe/face_mesh";
-import { drawConnectors } from "@mediapipe/drawing_utils";
 import {
   Select,
   SelectContent,
@@ -31,11 +30,13 @@ const predefinedColors = [
 
 const Index = () => {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const outputVideoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [selectedColor, setSelectedColor] = useState<string>("#8B4513"); // Set Brown as default
   const [isProcessing, setIsProcessing] = useState(false);
   const { toast } = useToast();
   const faceMeshRef = useRef<faceMesh.FaceMesh | null>(null);
+  const mediaStreamRef = useRef<MediaStream | null>(null);
 
   useEffect(() => {
     const initFaceMesh = async () => {
@@ -60,6 +61,12 @@ const Index = () => {
     };
 
     initFaceMesh();
+
+    return () => {
+      if (mediaStreamRef.current) {
+        mediaStreamRef.current.getTracks().forEach(track => track.stop());
+      }
+    };
   }, []);
 
   const onResults = (results: any) => {
@@ -67,7 +74,7 @@ const Index = () => {
     const video = videoRef.current;
     if (!canvas || !video || !results.multiFaceLandmarks) return;
 
-    const ctx = canvas.getContext("2d");
+    const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
     canvas.width = video.videoWidth;
@@ -138,6 +145,14 @@ const Index = () => {
     }
 
     ctx.restore();
+
+    // Stream the processed frame to the output video
+    if (outputVideoRef.current && !outputVideoRef.current.srcObject) {
+      const stream = canvas.captureStream();
+      mediaStreamRef.current = stream;
+      outputVideoRef.current.srcObject = stream;
+      outputVideoRef.current.play();
+    }
   };
 
   const processVideo = async () => {
@@ -173,6 +188,14 @@ const Index = () => {
         variant: "destructive"
       });
       return;
+    }
+
+    // Stop previous stream if exists
+    if (mediaStreamRef.current) {
+      mediaStreamRef.current.getTracks().forEach(track => track.stop());
+    }
+    if (outputVideoRef.current) {
+      outputVideoRef.current.srcObject = null;
     }
 
     const videoUrl = URL.createObjectURL(file);
@@ -257,11 +280,18 @@ const Index = () => {
             <video
               ref={videoRef}
               controls
-              className="w-full rounded-lg"
+              className="w-full rounded-lg hidden"
               playsInline
               onPlay={() => processVideo()}
             />
-            <canvas ref={canvasRef} className="w-full rounded-lg" />
+            <canvas ref={canvasRef} className="hidden" />
+            <video
+              ref={outputVideoRef}
+              controls
+              className="w-full rounded-lg"
+              playsInline
+              autoPlay
+            />
           </div>
 
           <Button
