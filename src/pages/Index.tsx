@@ -15,18 +15,10 @@ import {
 } from "@/components/ui/select";
 
 const predefinedColors = [
-  { name: "Purple", value: "#9b87f5" },
+  { name: "Black", value: "#000000" },
+  { name: "Brown", value: "#8B4513" },
   { name: "Blue", value: "#0EA5E9" },
   { name: "Green", value: "#22c55e" },
-  { name: "Orange", value: "#F97316" },
-  { name: "Pink", value: "#D946EF" },
-  { name: "Brown", value: "#8B4513" },
-  { name: "Gray", value: "#8E9196" },
-  { name: "Amber", value: "#FEC6A1" },
-  { name: "Violet", value: "#8B5CF6" },
-  { name: "Sky Blue", value: "#33C3F0" },
-  { name: "Yellow", value: "#FACC15" },
-  { name: "Black", value: "#000000" },
 ];
 
 const Index = () => {
