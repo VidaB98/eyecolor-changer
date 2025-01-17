@@ -1,18 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
-import { Upload } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import * as F from "@mediapipe/face_mesh";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { VideoUploader } from "@/components/video/VideoUploader";
+import { ColorPicker } from "@/components/video/ColorPicker";
+import { VideoPreview } from "@/components/video/VideoPreview";
+import { isEyeOpen, getIrisCenter, getIrisRadius } from "@/utils/faceMeshUtils";
 
 const predefinedColors = [
   { name: "Purple", value: "#9b87f5" },
@@ -33,7 +27,9 @@ const Index = () => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const outputVideoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [selectedColor, setSelectedColor] = useState<string>(predefinedColors[0].value);
+  const [selectedColor, setSelectedColor] = useState<string>(
+    predefinedColors[0].value
+  );
   const [isProcessing, setIsProcessing] = useState(false);
   const { toast } = useToast();
   const faceMeshRef = useRef<F.FaceMesh | null>(null);
@@ -66,20 +62,13 @@ const Index = () => {
 
     return () => {
       if (mediaStreamRef.current) {
-        mediaStreamRef.current.getTracks().forEach(track => track.stop());
+        mediaStreamRef.current.getTracks().forEach((track) => track.stop());
       }
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
       }
     };
   }, []);
-
-  const isEyeOpen = (landmarks: any, eyePoints: number[]) => {
-    const topY = landmarks[eyePoints[0]].y;
-    const bottomY = landmarks[eyePoints[1]].y;
-    const eyeHeight = Math.abs(topY - bottomY);
-    return eyeHeight > 0.02; // Empirically determined threshold
-  };
 
   const onResults = (results: any) => {
     const canvas = canvasRef.current;
@@ -104,7 +93,6 @@ const Index = () => {
         const leftEyeOpen = isEyeOpen(landmarks, leftEyeVertical);
         const rightEyeOpen = isEyeOpen(landmarks, rightEyeVertical);
 
-        // These points specifically target the iris
         const leftIrisPoints = [474, 475, 476, 477].map(
           (index) => landmarks[index]
         );
@@ -113,35 +101,13 @@ const Index = () => {
           (index) => landmarks[index]
         );
 
-        // Set up the drawing style for iris only
         ctx.fillStyle = selectedColor;
         ctx.globalCompositeOperation = "overlay";
-        ctx.globalAlpha = 0.6; // Increased opacity for more vibrant but natural look
-
-        const getIrisCenter = (points: any[]) => {
-          const x = points.reduce((sum, p) => sum + p.x, 0) / points.length;
-          const y = points.reduce((sum, p) => sum + p.y, 0) / points.length;
-          return { x, y };
-        };
-
-        const getIrisRadius = (
-          points: any[],
-          center: { x: number; y: number }
-        ) => {
-          // Slightly reduce the radius to ensure we only color the iris
-          return Math.max(
-            ...points.map((p) =>
-              Math.sqrt(
-                Math.pow((p.x - center.x) * canvas.width, 2) +
-                  Math.pow((p.y - center.y) * canvas.height, 2)
-              )
-            )
-          ) * 0.85; // Reduce radius by 15% to focus on iris
-        };
+        ctx.globalAlpha = 0.6;
 
         if (leftEyeOpen) {
           const leftCenter = getIrisCenter(leftIrisPoints);
-          const leftRadius = getIrisRadius(leftIrisPoints, leftCenter);
+          const leftRadius = getIrisRadius(leftIrisPoints, leftCenter, canvas.width, canvas.height);
           ctx.beginPath();
           ctx.arc(
             leftCenter.x * canvas.width,
@@ -155,7 +121,7 @@ const Index = () => {
 
         if (rightEyeOpen) {
           const rightCenter = getIrisCenter(rightIrisPoints);
-          const rightRadius = getIrisRadius(rightIrisPoints, rightCenter);
+          const rightRadius = getIrisRadius(rightIrisPoints, rightCenter, canvas.width, canvas.height);
           ctx.beginPath();
           ctx.arc(
             rightCenter.x * canvas.width,
@@ -233,7 +199,7 @@ const Index = () => {
       videoRef.current.onloadeddata = () => {
         if (videoRef.current) {
           videoRef.current.play().catch(console.error);
-          processVideo(); // Start processing when video is loaded
+          processVideo();
         }
       };
     }
@@ -249,98 +215,27 @@ const Index = () => {
         <h1 className="text-2xl font-bold mb-6">AI Eye Color Changer</h1>
 
         <div className="space-y-6">
-          <div>
-            <Label htmlFor="video-upload">Upload Video</Label>
-            <div className="mt-2">
-              <Input
-                id="video-upload"
-                type="file"
-                accept="video/*"
-                onChange={handleFileUpload}
-                className="hidden"
-              />
-              <Button
-                onClick={() => document.getElementById("video-upload")?.click()}
-                className="w-full"
-              >
-                <Upload className="mr-2" />
-                Choose Video
-              </Button>
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="color-picker">Choose Eye Color</Label>
-            <div className="flex gap-4">
-              <Select onValueChange={handleColorChange} value={selectedColor}>
-                <SelectTrigger className="w-[180px]">
-                  <SelectValue>
-                    <div className="flex items-center gap-2">
-                      <div
-                        className="w-4 h-4 rounded-full"
-                        style={{ backgroundColor: selectedColor }}
-                      />
-                      {predefinedColors.find(c => c.value === selectedColor)?.name || 'Custom'}
-                    </div>
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  {predefinedColors.map((color) => (
-                    <SelectItem key={color.value} value={color.value}>
-                      <div className="flex items-center gap-2">
-                        <div
-                          className="w-4 h-4 rounded-full"
-                          style={{ backgroundColor: color.value }}
-                        />
-                        {color.name}
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Input
-                id="color-picker"
-                type="color"
-                value={selectedColor}
-                onChange={(e) => handleColorChange(e.target.value)}
-                className="h-10 w-20"
-              />
-            </div>
-          </div>
-
-          <div className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Original Video</Label>
-                <video
-                  ref={videoRef}
-                  controls
-                  className="w-full rounded-lg"
-                  playsInline
-                  onPlay={() => processVideo()}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Processed Video</Label>
-                <video
-                  ref={outputVideoRef}
-                  controls
-                  className="w-full rounded-lg"
-                  playsInline
-                  autoPlay
-                  muted
-                />
-              </div>
-            </div>
-            <canvas ref={canvasRef} className="hidden" />
-          </div>
+          <VideoUploader onFileUpload={handleFileUpload} />
+          <ColorPicker
+            selectedColor={selectedColor}
+            predefinedColors={predefinedColors}
+            onColorChange={handleColorChange}
+          />
+          <VideoPreview
+            videoRef={videoRef}
+            outputVideoRef={outputVideoRef}
+          />
+          <canvas ref={canvasRef} className="hidden" />
 
           <Button
             onClick={() => {
               if (videoRef.current && videoRef.current.paused) {
-                videoRef.current.play().then(() => {
-                  processVideo();
-                }).catch(console.error);
+                videoRef.current
+                  .play()
+                  .then(() => {
+                    processVideo();
+                  })
+                  .catch(console.error);
               } else {
                 processVideo();
               }
