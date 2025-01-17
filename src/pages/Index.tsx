@@ -28,14 +28,12 @@ const Index = () => {
   const handleDownload = () => {
     if (!outputVideoRef.current || !mediaStreamRef.current || !videoRef.current) return;
 
-    // Get the audio track from the original video
     const audioContext = new AudioContext();
     const audioSource = audioContext.createMediaElementSource(videoRef.current);
     const audioDestination = audioContext.createMediaStreamDestination();
     audioSource.connect(audioDestination);
-    audioSource.connect(audioContext.destination); // Keep playing audio through speakers
+    audioSource.connect(audioContext.destination);
 
-    // Combine video and audio streams
     const combinedStream = new MediaStream([
       ...mediaStreamRef.current.getVideoTracks(),
       ...audioDestination.stream.getAudioTracks()
@@ -43,7 +41,7 @@ const Index = () => {
 
     const mediaRecorder = new MediaRecorder(combinedStream, {
       mimeType: 'video/webm;codecs=vp8',
-      videoBitsPerSecond: 8000000 // 8 Mbps for high quality
+      videoBitsPerSecond: 8000000
     });
     
     const chunks: BlobPart[] = [];
@@ -64,8 +62,6 @@ const Index = () => {
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-
-      // Clean up audio context
       audioContext.close();
 
       toast({
@@ -74,40 +70,40 @@ const Index = () => {
       });
     };
 
-    // Start recording the stream
     mediaRecorder.start();
-
-    // Reset video to beginning and play for recording
-    videoRef.current.currentTime = 0;
-    videoRef.current.play();
-
-    // Stop recording after the video duration
     setTimeout(() => {
       mediaRecorder.stop();
-      videoRef.current?.pause();
-    }, videoRef.current.duration * 1000);
+    }, 5000); // Record 5 seconds of video
   };
 
   useEffect(() => {
     const initFaceMesh = async () => {
-      if (typeof window === 'undefined') return;
-      
-      faceMeshRef.current = new FaceMesh({
-        locateFile: (file) => {
-          return `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619/${file}`;
-        },
-      });
+      try {
+        const faceMesh = new FaceMesh({
+          locateFile: (file) => {
+            return `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`;
+          }
+        });
 
-      await faceMeshRef.current.initialize();
+        await faceMesh.setOptions({
+          maxNumFaces: 1,
+          refineLandmarks: true,
+          minDetectionConfidence: 0.5,
+          minTrackingConfidence: 0.5
+        });
 
-      faceMeshRef.current.setOptions({
-        maxNumFaces: 1,
-        refineLandmarks: true,
-        minDetectionConfidence: 0.5,
-        minTrackingConfidence: 0.5,
-      });
-
-      faceMeshRef.current.onResults(onResults);
+        await faceMesh.initialize();
+        
+        faceMesh.onResults(onResults);
+        faceMeshRef.current = faceMesh;
+      } catch (error) {
+        console.error("Error initializing FaceMesh:", error);
+        toast({
+          title: "Error",
+          description: "Failed to initialize face detection",
+          variant: "destructive",
+        });
+      }
     };
 
     initFaceMesh();
@@ -120,7 +116,7 @@ const Index = () => {
         cancelAnimationFrame(animationFrameRef.current);
       }
     };
-  }, []);
+  }, [toast]);
 
   const isEyeOpen = (landmarks: any, eyePoints: number[]) => {
     const topY = landmarks[eyePoints[0]].y;
