@@ -205,13 +205,27 @@ const Index = () => {
       try {
         if (!outputVideoRef.current.srcObject) {
           console.log("Creating new stream from canvas...");
-          const stream = canvas.captureStream(30); // Specify frame rate
+          let stream;
+          
+          // Try different methods for stream capture
+          try {
+            stream = canvas.captureStream(30);
+          } catch (e) {
+            console.log("Standard captureStream failed, trying webkit...");
+            // @ts-ignore: Webkit prefix
+            stream = canvas.captureStream?.(30) || canvas.webkitCaptureStream?.(30);
+          }
+
           if (!stream) {
             throw new Error("Failed to capture stream from canvas");
           }
+
           console.log("Stream created successfully:", stream.getTracks().length, "tracks");
           mediaStreamRef.current = stream;
           outputVideoRef.current.srcObject = stream;
+          
+          // Use both play() and autoplay attribute for better compatibility
+          outputVideoRef.current.autoplay = true;
           outputVideoRef.current.play().catch(error => {
             console.error("Error playing output video:", error);
             toast({
@@ -232,77 +246,11 @@ const Index = () => {
     }
   };
 
-  const processVideo = async () => {
-    if (!videoRef.current || !faceMeshRef.current) {
-      toast({
-        title: "Error",
-        description: "Face detection is not ready. Please wait a moment and try again.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setIsProcessing(true);
-    try {
-      await faceMeshRef.current.send({ image: videoRef.current });
-      
-      if (!videoRef.current.paused && !videoRef.current.ended) {
-        animationFrameRef.current = requestAnimationFrame(processVideo);
-      } else {
-        setIsProcessing(false);
-      }
-    } catch (error) {
-      console.error("Error processing video:", error);
-      setIsProcessing(false);
-      toast({
-        title: "Processing Error",
-        description: "An error occurred while processing the video. Please try again.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    if (!file.type.includes('video/')) {
-      toast({
-        title: "Invalid file type",
-        description: "Please upload a video file",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    if (mediaStreamRef.current) {
-      mediaStreamRef.current.getTracks().forEach(track => track.stop());
-    }
-    if (outputVideoRef.current) {
-      outputVideoRef.current.srcObject = null;
-    }
-    if (animationFrameRef.current) {
-      cancelAnimationFrame(animationFrameRef.current);
-    }
-
-    const videoUrl = URL.createObjectURL(file);
-    if (videoRef.current) {
-      videoRef.current.src = videoUrl;
-      videoRef.current.load();
-      videoRef.current.onloadeddata = () => {
-        if (videoRef.current) {
-          videoRef.current.play().catch(console.error);
-          processVideo();
-        }
-      };
-    }
-  };
-
   const initFaceMesh = async () => {
     try {
       console.log("Creating FaceMesh instance...");
       
-      // Define CDN bases with version and fallbacks
+      // Define CDN bases with version and trailing slashes
       const cdnBases = [
         'https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619/',
         'https://unpkg.com/@mediapipe/face_mesh@0.4.1633559619/',
@@ -385,6 +333,72 @@ const Index = () => {
         description: "Unable to load face detection. Please check your internet connection and try again.",
         variant: "destructive",
       });
+    }
+  };
+
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.includes('video/')) {
+      toast({
+        title: "Invalid file type",
+        description: "Please upload a video file",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Clean up previous resources
+    if (mediaStreamRef.current) {
+      mediaStreamRef.current.getTracks().forEach(track => track.stop());
+    }
+    if (outputVideoRef.current) {
+      outputVideoRef.current.srcObject = null;
+    }
+    if (animationFrameRef.current) {
+      cancelAnimationFrame(animationFrameRef.current);
+    }
+
+    // Create object URL with explicit type for better browser compatibility
+    const videoUrl = URL.createObjectURL(new Blob([file], { type: file.type }));
+    
+    if (videoRef.current) {
+      videoRef.current.src = videoUrl;
+      videoRef.current.load();
+
+      // Add error handling for video loading
+      videoRef.current.onerror = (e) => {
+        console.error("Error loading video:", e);
+        toast({
+          title: "Video Error",
+          description: "Failed to load the video. Please try a different format.",
+          variant: "destructive"
+        });
+      };
+
+      videoRef.current.onloadeddata = () => {
+        if (videoRef.current) {
+          // Ensure video playback is supported
+          if (videoRef.current.canPlayType(file.type)) {
+            videoRef.current.play().catch(error => {
+              console.error("Error playing video:", error);
+              toast({
+                title: "Playback Error",
+                description: "Unable to play the video. Please try a different browser or video format.",
+                variant: "destructive"
+              });
+            });
+            processVideo();
+          } else {
+            toast({
+              title: "Format Error",
+              description: "This video format is not supported by your browser. Please try a different format.",
+              variant: "destructive"
+            });
+          }
+        }
+      };
     }
   };
 
@@ -511,3 +525,4 @@ const Index = () => {
 };
 
 export default Index;
+
