@@ -19,25 +19,9 @@ export const drawIris = (
 ) => {
   if (!irisCtx) return;
   
-  // Calculate opacity based on how open the eye is
-  // When openRatio is 0.015 or less, opacity will be 0
-  // When openRatio is 0.03 or more, opacity will be 0.7
-  // Between these values, opacity scales linearly
-  const minRatio = 0.015;
-  const maxRatio = 0.03;
-  const maxOpacity = 0.7;
+  // Only show color when eye is sufficiently open (threshold at 0.03)
+  if (openRatio < 0.03) return;
   
-  let opacity = 0;
-  if (openRatio > minRatio) {
-    opacity = Math.min(
-      ((openRatio - minRatio) / (maxRatio - minRatio)) * maxOpacity,
-      maxOpacity
-    );
-  }
-  
-  // If eye is completely closed or opacity would be imperceptible, skip drawing
-  if (opacity < 0.01) return;
-
   const centerX = landmarks[centerPoint].x * canvas.width;
   const centerY = landmarks[centerPoint].y * canvas.height;
 
@@ -48,7 +32,7 @@ export const drawIris = (
   });
   const radius = (radii.reduce((a, b) => a + b, 0) / radii.length) * 0.85;
 
-  irisCtx.globalAlpha = opacity;
+  irisCtx.globalAlpha = 0.7;
   irisCtx.fillStyle = selectedColor;
   irisCtx.strokeStyle = selectedColor;
   irisCtx.beginPath();
