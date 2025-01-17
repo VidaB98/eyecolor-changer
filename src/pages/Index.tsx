@@ -25,6 +25,7 @@ const Index = () => {
   const audioSourceRef = useRef<MediaElementAudioSourceNode | null>(null);
   const targetFPS = 30;
   const frameInterval = 1000 / targetFPS;
+  const mountedRef = useRef(true);
 
   const handleDownload = () => {
     if (!outputVideoRef.current || !mediaStreamRef.current || !videoRef.current) return;
@@ -212,7 +213,7 @@ const Index = () => {
   };
 
   const processVideo = async () => {
-    if (!videoRef.current || !faceMeshRef.current) {
+    if (!videoRef.current || !faceMeshRef.current || !mountedRef.current) {
       setIsProcessing(false);
       return;
     }
@@ -264,7 +265,7 @@ const Index = () => {
       videoRef.current.src = videoUrl;
       videoRef.current.load();
       videoRef.current.onloadeddata = () => {
-        if (videoRef.current) {
+        if (videoRef.current && mountedRef.current) {
           videoRef.current.play().catch(console.error);
           processVideo();
         }
@@ -274,7 +275,6 @@ const Index = () => {
 
   const initFaceMesh = async () => {
     try {
-      // Clear any existing instance
       if (faceMeshRef.current) {
         await faceMeshRef.current.close();
         faceMeshRef.current = null;
@@ -282,14 +282,19 @@ const Index = () => {
 
       const { FaceMesh } = await import('@mediapipe/face_mesh');
       
-      // Create a new instance with explicit configuration
+      // Create new instance with specific version
       const faceMesh = new FaceMesh({
         locateFile: (file) => {
           return `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619/${file}`;
         }
       });
 
-      // Initialize with required configuration
+      // Wait for initialization before setting options
+      await new Promise(resolve => {
+        faceMesh.onResults(onResults);
+        resolve(true);
+      });
+
       await faceMesh.setOptions({
         maxNumFaces: 1,
         refineLandmarks: true,
@@ -297,32 +302,31 @@ const Index = () => {
         minTrackingConfidence: 0.5
       });
 
-      // Ensure initialization is complete before setting up results handler
       await faceMesh.initialize();
       
-      // Set up results handler after initialization
-      faceMesh.onResults(onResults);
-      
-      // Store the initialized instance
-      faceMeshRef.current = faceMesh;
-
-      console.log("FaceMesh initialized successfully");
+      if (mountedRef.current) {
+        faceMeshRef.current = faceMesh;
+        console.log("FaceMesh initialized successfully");
+      } else {
+        await faceMesh.close();
+      }
     } catch (error) {
       console.error("Error initializing FaceMesh:", error);
-      // Wait a bit and retry initialization
-      setTimeout(() => {
-        if (!faceMeshRef.current) {
-          initFaceMesh();
-        }
-      }, 1000);
+      if (mountedRef.current) {
+        setTimeout(() => {
+          if (mountedRef.current && !faceMeshRef.current) {
+            initFaceMesh();
+          }
+        }, 1000);
+      }
     }
   };
 
   useEffect(() => {
-    let mounted = true;
+    mountedRef.current = true;
 
     const init = async () => {
-      if (mounted) {
+      if (mountedRef.current) {
         await initFaceMesh();
       }
     };
@@ -330,7 +334,7 @@ const Index = () => {
     init();
 
     return () => {
-      mounted = false;
+      mountedRef.current = false;
       if (mediaStreamRef.current) {
         mediaStreamRef.current.getTracks().forEach(track => track.stop());
       }
@@ -405,33 +409,15 @@ const Index = () => {
             <canvas ref={canvasRef} className="hidden" />
           </div>
 
-          <div className="flex gap-4">
-            <Button
-              onClick={() => {
-                if (videoRef.current && videoRef.current.paused) {
-                  videoRef.current.play().then(() => {
-                    processVideo();
-                  }).catch(console.error);
-                } else {
-                  processVideo();
-                }
-              }}
-              disabled={isProcessing || !videoRef.current?.src}
-              className="flex-1"
-            >
-              {isProcessing ? "Processing..." : "Change Eye Color"}
-            </Button>
-            
-            <Button
-              onClick={handleDownload}
-              disabled={!canvasRef.current}
-              variant="outline"
-              className="flex gap-2"
-            >
-              <Download className="size-4" />
-              Download
-            </Button>
-          </div>
+          <Button
+            onClick={handleDownload}
+            disabled={!canvasRef.current}
+            variant="outline"
+            className="flex gap-2 w-full"
+          >
+            <Download className="size-4" />
+            Download
+          </Button>
         </div>
       </Card>
     </div>
