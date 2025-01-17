@@ -101,13 +101,17 @@ const Index = () => {
           (index) => landmarks[index]
         );
 
+        // Enhanced color application
         ctx.fillStyle = selectedColor;
-        ctx.globalCompositeOperation = "overlay";
-        ctx.globalAlpha = 0.6;
+        ctx.globalCompositeOperation = "source-over";
+        ctx.globalAlpha = 0.8;
 
+        // Apply color with multiple layers for better blending
         if (leftEyeOpen) {
           const leftCenter = getIrisCenter(leftIrisPoints);
           const leftRadius = getIrisRadius(leftIrisPoints, leftCenter, canvas.width, canvas.height);
+          
+          // Base color layer
           ctx.beginPath();
           ctx.arc(
             leftCenter.x * canvas.width,
@@ -117,16 +121,46 @@ const Index = () => {
             2 * Math.PI
           );
           ctx.fill();
+
+          // Overlay layer for depth
+          ctx.globalCompositeOperation = "overlay";
+          ctx.globalAlpha = 0.4;
+          ctx.beginPath();
+          ctx.arc(
+            leftCenter.x * canvas.width,
+            leftCenter.y * canvas.height,
+            leftRadius * 0.9,
+            0,
+            2 * Math.PI
+          );
+          ctx.fill();
         }
 
         if (rightEyeOpen) {
           const rightCenter = getIrisCenter(rightIrisPoints);
           const rightRadius = getIrisRadius(rightIrisPoints, rightCenter, canvas.width, canvas.height);
+          
+          // Base color layer
+          ctx.globalCompositeOperation = "source-over";
+          ctx.globalAlpha = 0.8;
           ctx.beginPath();
           ctx.arc(
             rightCenter.x * canvas.width,
             rightCenter.y * canvas.height,
             rightRadius,
+            0,
+            2 * Math.PI
+          );
+          ctx.fill();
+
+          // Overlay layer for depth
+          ctx.globalCompositeOperation = "overlay";
+          ctx.globalAlpha = 0.4;
+          ctx.beginPath();
+          ctx.arc(
+            rightCenter.x * canvas.width,
+            rightCenter.y * canvas.height,
+            rightRadius * 0.9,
             0,
             2 * Math.PI
           );
