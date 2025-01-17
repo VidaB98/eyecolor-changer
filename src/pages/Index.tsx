@@ -97,12 +97,13 @@ const Index = () => {
 
     if (results.multiFaceLandmarks) {
       for (const landmarks of results.multiFaceLandmarks) {
-        const leftEyeVertical = [159, 145]; // Top and bottom landmarks
-        const rightEyeVertical = [386, 374]; // Top and bottom landmarks
+        const leftEyeVertical = [159, 145];
+        const rightEyeVertical = [386, 374];
         
         const leftEyeOpen = isEyeOpen(landmarks, leftEyeVertical);
         const rightEyeOpen = isEyeOpen(landmarks, rightEyeVertical);
 
+        // These points specifically target the iris
         const leftIrisPoints = [474, 475, 476, 477].map(
           (index) => landmarks[index]
         );
@@ -111,9 +112,10 @@ const Index = () => {
           (index) => landmarks[index]
         );
 
+        // Set up the drawing style for iris only
         ctx.fillStyle = selectedColor;
-        ctx.globalCompositeOperation = "overlay";
-        ctx.globalAlpha = 0.6;
+        ctx.globalCompositeOperation = "source-over";
+        ctx.globalAlpha = 0.45; // Reduced opacity for more natural look
 
         const getIrisCenter = (points: any[]) => {
           const x = points.reduce((sum, p) => sum + p.x, 0) / points.length;
@@ -125,6 +127,7 @@ const Index = () => {
           points: any[],
           center: { x: number; y: number }
         ) => {
+          // Slightly reduce the radius to ensure we only color the iris
           return Math.max(
             ...points.map((p) =>
               Math.sqrt(
@@ -132,7 +135,7 @@ const Index = () => {
                   Math.pow((p.y - center.y) * canvas.height, 2)
               )
             )
-          );
+          ) * 0.85; // Reduce radius by 15% to focus on iris
         };
 
         if (leftEyeOpen) {
