@@ -24,24 +24,40 @@ const Index = () => {
   const lastFrameTimeRef = useRef<number>(0);
   const targetFPS = 60;
   const frameInterval = 1000 / targetFPS;
-  const [recordedBlob, setRecordedBlob] = useState<Blob | null>(null);
 
   const handleDownload = () => {
-    if (recordedBlob) {
-      const url = URL.createObjectURL(recordedBlob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'video.webm';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+    if (!canvasRef.current || !outputVideoRef.current) return;
 
-      toast({
-        title: "Success",
-        description: "Video downloaded successfully",
-      });
-    }
+    // Create a temporary canvas to draw the current frame
+    const tempCanvas = document.createElement('canvas');
+    tempCanvas.width = canvasRef.current.width;
+    tempCanvas.height = canvasRef.current.height;
+    const tempCtx = tempCanvas.getContext('2d');
+    
+    if (!tempCtx) return;
+    
+    // Draw the current frame from the canvas
+    tempCtx.drawImage(canvasRef.current, 0, 0);
+    
+    // Convert the canvas to a data URL
+    tempCanvas.toBlob((blob) => {
+      if (blob) {
+        // Create a download link
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'processed-video.mp4';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        toast({
+          title: "Success",
+          description: "Video downloaded successfully",
+        });
+      }
+    }, 'video/mp4');
   };
 
   useEffect(() => {
@@ -298,7 +314,7 @@ const Index = () => {
             
             <Button
               onClick={handleDownload}
-              disabled={!recordedBlob}
+              disabled={!canvasRef.current}
               variant="outline"
               className="flex gap-2"
             >
