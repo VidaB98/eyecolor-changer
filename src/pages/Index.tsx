@@ -26,10 +26,11 @@ const Index = () => {
   const frameInterval = 1000 / targetFPS;
 
   const handleDownload = () => {
-    if (!mediaStreamRef.current) return;
+    if (!canvasRef.current) return;
 
     const recordedChunks: Blob[] = [];
-    const mediaRecorder = new MediaRecorder(mediaStreamRef.current, {
+    const canvasStream = canvasRef.current.captureStream(targetFPS);
+    const mediaRecorder = new MediaRecorder(canvasStream, {
       mimeType: 'video/webm;codecs=vp8,opus',
       videoBitsPerSecond: 2500000 // 2.5 Mbps for good quality
     });
@@ -59,10 +60,13 @@ const Index = () => {
       });
     };
 
+    // Start recording
     mediaRecorder.start();
+    
+    // Record for 3 seconds
     setTimeout(() => {
       mediaRecorder.stop();
-    }, 3000); // Record for 3 seconds
+    }, 3000);
   };
 
   useEffect(() => {
