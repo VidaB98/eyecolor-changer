@@ -71,9 +71,16 @@ const Index = () => {
     };
 
     mediaRecorder.start();
+    
+    // Reset video to beginning and play for recording
+    videoRef.current.currentTime = 0;
+    videoRef.current.play();
+
+    // Stop recording after the video duration
     setTimeout(() => {
       mediaRecorder.stop();
-    }, 5000); // Record 5 seconds of video
+      videoRef.current?.pause();
+    }, videoRef.current.duration * 1000); // Use the original video duration
   };
 
   useEffect(() => {
