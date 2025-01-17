@@ -16,14 +16,17 @@ import {
 } from "@/components/ui/select";
 
 const predefinedColors = [
-  { name: "Red", value: "#ff0000" },
   { name: "Purple", value: "#9b87f5" },
   { name: "Blue", value: "#0EA5E9" },
   { name: "Green", value: "#22c55e" },
+  { name: "Orange", value: "#F97316" },
+  { name: "Pink", value: "#D946EF" },
   { name: "Brown", value: "#8B4513" },
   { name: "Gray", value: "#8E9196" },
   { name: "Amber", value: "#FEC6A1" },
   { name: "Violet", value: "#8B5CF6" },
+  { name: "Sky Blue", value: "#33C3F0" },
+  { name: "Red", value: "#ea384c" },
 ];
 
 const Index = () => {
@@ -216,17 +219,7 @@ const Index = () => {
             <div className="flex gap-4">
               <Select onValueChange={handleColorChange} value={selectedColor}>
                 <SelectTrigger className="w-[180px]">
-                  <SelectValue placeholder="Select a color">
-                    {selectedColor && (
-                      <div className="flex items-center gap-2">
-                        <div
-                          className="w-4 h-4 rounded-full"
-                          style={{ backgroundColor: selectedColor }}
-                        />
-                        {predefinedColors.find(c => c.value === selectedColor)?.name || 'Custom'}
-                      </div>
-                    )}
-                  </SelectValue>
+                  <SelectValue placeholder="Select a color" />
                 </SelectTrigger>
                 <SelectContent>
                   {predefinedColors.map((color) => (
@@ -245,7 +238,7 @@ const Index = () => {
               <Input
                 id="color-picker"
                 type="color"
-                value={selectedColor}
+                value={selectedColor || "#000000"}
                 onChange={(e) => handleColorChange(e.target.value)}
                 className="h-10 w-20"
               />
