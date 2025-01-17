@@ -267,7 +267,7 @@ const Index = () => {
     try {
       console.log("Creating FaceMesh instance...");
       
-      // Define CDN bases once at the top level
+      // Define CDN bases with version
       const cdnBases = [
         'https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619/',
         'https://unpkg.com/@mediapipe/face_mesh@0.4.1633559619/',
@@ -277,17 +277,22 @@ const Index = () => {
       let faceMeshInstance = null;
       let successfulCDN = '';
 
-      // Try creating FaceMesh with each CDN until one works
+      // Try each CDN until one works
       for (const baseUrl of cdnBases) {
         try {
+          // Pre-fetch the main script to verify CDN accessibility
+          const response = await fetch(baseUrl + 'face_mesh_solution_simd_wasm_bin.js');
+          if (!response.ok) {
+            throw new Error(`Failed to load from ${baseUrl}`);
+          }
+
           faceMeshInstance = new FaceMesh({
             locateFile: (file) => {
-              console.log(`Attempting to load ${file} from ${baseUrl}`);
+              console.log(`Loading ${file} from ${baseUrl}`);
               return baseUrl + file;
             }
           });
           
-          // If we get here, the CDN worked
           successfulCDN = baseUrl;
           console.log(`Successfully created FaceMesh using ${baseUrl}`);
           break;
@@ -313,38 +318,39 @@ const Index = () => {
       faceMeshInstance.onResults(onResults);
 
       console.log("Initializing FaceMesh...");
-      try {
-        // Use the same successful CDN for loading assets
-        const assetUrls = [
-          ['face_mesh_solution_packed_assets.data', 'face_mesh.data'],
-          ['face_mesh_solution_simd_wasm_bin.js', 'face_mesh_simd.js'],
-          ['face_mesh_solution_wasm_bin.js', 'face_mesh.js']
-        ];
+      
+      // Required assets with fallbacks
+      const requiredAssets = [
+        'face_mesh_solution_packed_assets.data',
+        'face_mesh_solution_simd_wasm_bin.js',
+        'face_mesh_solution_simd_wasm_bin.wasm',
+        'face_mesh.binarypb'
+      ];
 
-        // Preload assets from the CDN that worked
-        await Promise.all(
-          assetUrls.map(([primary, fallback]) =>
-            fetch(successfulCDN + primary)
-              .catch(() => fetch(successfulCDN + fallback))
-          )
-        );
+      // Pre-fetch all required assets
+      await Promise.all(
+        requiredAssets.map(async (asset) => {
+          const response = await fetch(successfulCDN + asset);
+          if (!response.ok) {
+            console.log(`Retrying ${asset} with fallback...`);
+            // Try fallback filename if original fails
+            const fallbackResponse = await fetch(successfulCDN + asset.replace('_solution_simd', ''));
+            if (!fallbackResponse.ok) {
+              throw new Error(`Failed to load ${asset}`);
+            }
+          }
+        })
+      );
 
-        await faceMeshInstance.initialize();
-        console.log("FaceMesh initialized successfully!");
-        faceMeshRef.current = faceMeshInstance;
-      } catch (initError) {
-        console.error("Error during face mesh initialization:", initError);
-        toast({
-          title: "Initialization Error",
-          description: "There was a problem loading the face detection features. Please refresh the page and try again.",
-          variant: "destructive",
-        });
-      }
+      await faceMeshInstance.initialize();
+      console.log("FaceMesh initialized successfully!");
+      faceMeshRef.current = faceMeshInstance;
+
     } catch (error) {
-      console.error("Error creating or setting up FaceMesh:", error);
+      console.error("Error during FaceMesh setup:", error);
       toast({
         title: "Loading Error",
-        description: "Unable to load face detection. Please refresh the page or check your internet connection.",
+        description: "Unable to load face detection. Please check your internet connection and try again.",
         variant: "destructive",
       });
     }
