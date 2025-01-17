@@ -269,8 +269,15 @@ const Index = () => {
       const faceMesh = new FaceMesh({
         locateFile: (file) => {
           console.log(`Loading MediaPipe file: ${file}`);
-          // Ensure we're loading from the official MediaPipe CDN with explicit versioning
-          return `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619/` + file;
+          // Try multiple CDNs for better availability
+          const cdnUrls = [
+            `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619/${file}`,
+            `https://unpkg.com/@mediapipe/face_mesh@0.4.1633559619/${file}`,
+            `https://www.gstatic.com/mediapipe/face_mesh/${file}`
+          ];
+          
+          // Return the first CDN URL, if it fails the browser will try the next one
+          return cdnUrls[0];
         }
       });
 
@@ -287,12 +294,33 @@ const Index = () => {
 
       console.log("Initializing FaceMesh...");
       try {
-        // Load required assets before initialization
-        await Promise.all([
-          fetch('https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619/face_mesh_solution_packed_assets.data'),
-          fetch('https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619/face_mesh_solution_simd_wasm_bin.js'),
-          fetch('https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619/face_mesh_solution_wasm_bin.js')
-        ]);
+        // Preload required assets with fallback URLs
+        const assetUrls = [
+          ['face_mesh_solution_packed_assets.data', 'face_mesh.data'],
+          ['face_mesh_solution_simd_wasm_bin.js', 'face_mesh_simd.js'],
+          ['face_mesh_solution_wasm_bin.js', 'face_mesh.js']
+        ];
+
+        const cdnBases = [
+          'https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619/',
+          'https://unpkg.com/@mediapipe/face_mesh@0.4.1633559619/',
+          'https://www.gstatic.com/mediapipe/face_mesh/'
+        ];
+
+        // Try loading from each CDN until successful
+        for (const base of cdnBases) {
+          try {
+            await Promise.all(
+              assetUrls.map(([primary, fallback]) =>
+                fetch(base + primary).catch(() => fetch(base + fallback))
+              )
+            );
+            break; // If successful, exit the loop
+          } catch (e) {
+            console.log(`Failed to load from ${base}, trying next CDN...`);
+            continue;
+          }
+        }
 
         await faceMesh.initialize();
         console.log("FaceMesh initialized successfully!");
@@ -301,15 +329,15 @@ const Index = () => {
         console.error("Error during face mesh initialization:", initError);
         toast({
           title: "Face Detection Error",
-          description: "Failed to initialize face detection. Please ensure you're using a modern browser and try refreshing the page.",
+          description: "Failed to initialize face detection. Please try using a different browser or check your internet connection.",
           variant: "destructive",
         });
       }
     } catch (error) {
       console.error("Error creating or setting up FaceMesh:", error);
       toast({
-        title: "Resource Loading Error",
-        description: "Failed to load face detection resources. Please check your internet connection and ensure you're using a supported browser.",
+        title: "Browser Compatibility Issue",
+        description: "Your browser might not support all required features. Please try using Chrome, Firefox, or Edge.",
         variant: "destructive",
       });
     }
