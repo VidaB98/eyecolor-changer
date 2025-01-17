@@ -26,38 +26,43 @@ const Index = () => {
   const frameInterval = 1000 / targetFPS;
 
   const handleDownload = () => {
-    if (!canvasRef.current || !outputVideoRef.current) return;
+    if (!outputVideoRef.current || !mediaStreamRef.current) return;
 
-    // Create a temporary canvas to draw the current frame
-    const tempCanvas = document.createElement('canvas');
-    tempCanvas.width = canvasRef.current.width;
-    tempCanvas.height = canvasRef.current.height;
-    const tempCtx = tempCanvas.getContext('2d');
-    
-    if (!tempCtx) return;
-    
-    // Draw the current frame from the canvas
-    tempCtx.drawImage(canvasRef.current, 0, 0);
-    
-    // Convert the canvas to a data URL
-    tempCanvas.toBlob((blob) => {
-      if (blob) {
-        // Create a download link
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'processed-video.mp4';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+    const mediaRecorder = new MediaRecorder(mediaStreamRef.current);
+    const chunks: BlobPart[] = [];
 
-        toast({
-          title: "Success",
-          description: "Video downloaded successfully",
-        });
+    mediaRecorder.ondataavailable = (e) => {
+      if (e.data.size > 0) {
+        chunks.push(e.data);
       }
-    }, 'video/mp4');
+    };
+
+    mediaRecorder.onstop = () => {
+      const blob = new Blob(chunks, { type: 'video/mp4' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'processed-video.mp4';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      toast({
+        title: "Success",
+        description: "Video downloaded successfully",
+      });
+    };
+
+    // Start recording the stream
+    mediaRecorder.start();
+
+    // Stop recording after the video duration
+    if (videoRef.current) {
+      setTimeout(() => {
+        mediaRecorder.stop();
+      }, videoRef.current.duration * 1000);
+    }
   };
 
   useEffect(() => {
