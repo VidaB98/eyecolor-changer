@@ -26,32 +26,19 @@ const Index = () => {
   const frameInterval = 1000 / targetFPS;
 
   const handleDownload = () => {
-    if (!canvasRef.current) return;
+    if (!mediaStreamRef.current) return;
 
-    // Create a temporary canvas to record the video
-    const tempCanvas = document.createElement('canvas');
-    const tempCtx = tempCanvas.getContext('2d');
-    if (!tempCtx) return;
+    const recordedChunks: Blob[] = [];
+    const mediaRecorder = new MediaRecorder(mediaStreamRef.current);
 
-    // Set canvas dimensions to match the video
-    tempCanvas.width = canvasRef.current.width;
-    tempCanvas.height = canvasRef.current.height;
-
-    // Draw the current frame
-    tempCtx.drawImage(canvasRef.current, 0, 0);
-
-    // Convert the canvas to a blob
-    tempCanvas.toBlob((blob) => {
-      if (!blob) {
-        toast({
-          title: "Error",
-          description: "Failed to create video file",
-          variant: "destructive",
-        });
-        return;
+    mediaRecorder.ondataavailable = (event) => {
+      if (event.data.size > 0) {
+        recordedChunks.push(event.data);
       }
+    };
 
-      // Create download link
+    mediaRecorder.onstop = () => {
+      const blob = new Blob(recordedChunks, { type: 'video/mp4' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -65,7 +52,12 @@ const Index = () => {
         title: "Success",
         description: "Video downloaded successfully",
       });
-    }, 'video/mp4');
+    };
+
+    mediaRecorder.start();
+    setTimeout(() => {
+      mediaRecorder.stop();
+    }, 1000); // Adjust the duration as needed
   };
 
   useEffect(() => {
@@ -103,12 +95,10 @@ const Index = () => {
   }, []);
 
   const isEyeOpen = (landmarks: any, eyePoints: number[]) => {
-    // Calculate vertical distance between top and bottom eye points
     const topY = landmarks[eyePoints[0]].y;
     const bottomY = landmarks[eyePoints[1]].y;
     const eyeHeight = Math.abs(topY - bottomY);
     
-    // Threshold for determining if eye is open (adjusted for more accuracy)
     return eyeHeight > 0.018; // Increased threshold for more accurate detection
   };
 
@@ -138,9 +128,8 @@ const Index = () => {
 
     if (results.multiFaceLandmarks) {
       for (const landmarks of results.multiFaceLandmarks) {
-        // Eye state detection points
-        const leftEyeVertical = [159, 145];  // Top and bottom points of left eye
-        const rightEyeVertical = [386, 374]; // Top and bottom points of right eye
+        const leftEyeVertical = [159, 145];  
+        const rightEyeVertical = [386, 374]; 
         
         const leftEyeOpen = isEyeOpen(landmarks, leftEyeVertical);
         const rightEyeOpen = isEyeOpen(landmarks, rightEyeVertical);
@@ -156,12 +145,11 @@ const Index = () => {
         ctx.globalAlpha = 0.7;
 
         const drawIris = (centerPoint: number, boundaryPoints: number[], isOpen: boolean) => {
-          if (!isOpen) return; // Skip drawing if eye is closed
+          if (!isOpen) return;
 
           const centerX = landmarks[centerPoint].x * canvas.width;
           const centerY = landmarks[centerPoint].y * canvas.height;
 
-          // Calculate average radius using boundary points
           const radii = boundaryPoints.map(point => {
             const dx = landmarks[point].x * canvas.width - centerX;
             const dy = landmarks[point].y * canvas.height - centerY;
@@ -169,13 +157,11 @@ const Index = () => {
           });
           const radius = radii.reduce((a, b) => a + b, 0) / radii.length;
 
-          // Draw iris only when eye is open
           ctx.beginPath();
           ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
           ctx.fill();
         };
 
-        // Only draw iris if the respective eye is open
         if (leftEyeOpen) {
           drawIris(leftIrisCenter, leftIrisBoundary, leftEyeOpen);
         }
@@ -250,7 +236,7 @@ const Index = () => {
       videoRef.current.onloadeddata = () => {
         if (videoRef.current) {
           videoRef.current.play().catch(console.error);
-          processVideo(); // Start processing when video is loaded
+          processVideo();
         }
       };
     }
@@ -343,4 +329,3 @@ const Index = () => {
 };
 
 export default Index;
-
