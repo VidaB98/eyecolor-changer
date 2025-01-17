@@ -25,7 +25,8 @@ const predefinedColors = [
   { name: "Amber", value: "#FEC6A1" },
   { name: "Violet", value: "#8B5CF6" },
   { name: "Sky Blue", value: "#33C3F0" },
-  { name: "Red", value: "#ea384c" },
+  { name: "Yellow", value: "#FACC15" },
+  { name: "Black", value: "#000000" },
 ];
 
 const Index = () => {
