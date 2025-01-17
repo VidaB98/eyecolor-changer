@@ -268,7 +268,7 @@ const Index = () => {
       try {
         const faceMesh = new FaceMesh({
           locateFile: (file) => {
-            return `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`;
+            return `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619/${file}`;
           }
         });
 
@@ -279,15 +279,24 @@ const Index = () => {
           minTrackingConfidence: 0.5
         });
 
-        await faceMesh.initialize();
-        
         faceMesh.onResults(onResults);
-        faceMeshRef.current = faceMesh;
+        
+        try {
+          await faceMesh.initialize();
+          faceMeshRef.current = faceMesh;
+        } catch (initError) {
+          console.error("Error during face mesh initialization:", initError);
+          toast({
+            title: "Face Detection Error",
+            description: "Failed to initialize face detection. Please try refreshing the page.",
+            variant: "destructive",
+          });
+        }
       } catch (error) {
-        console.error("Error initializing FaceMesh:", error);
+        console.error("Error creating FaceMesh:", error);
         toast({
           title: "Error",
-          description: "Failed to initialize face detection",
+          description: "Failed to load face detection resources. Please check your internet connection and try again.",
           variant: "destructive",
         });
       }
