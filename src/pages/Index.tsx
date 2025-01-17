@@ -29,7 +29,7 @@ const predefinedColors = [
 const Index = () => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [selectedColor, setSelectedColor] = useState(predefinedColors[0].value);
+  const [selectedColor, setSelectedColor] = useState<string>("");
   const [isProcessing, setIsProcessing] = useState(false);
   const { toast } = useToast();
   const faceMeshRef = useRef<FaceMesh | null>(null);
@@ -217,14 +217,16 @@ const Index = () => {
             <div className="flex gap-4">
               <Select onValueChange={handleColorChange} value={selectedColor}>
                 <SelectTrigger className="w-[180px]">
-                  <SelectValue>
-                    <div className="flex items-center gap-2">
-                      <div
-                        className="w-4 h-4 rounded-full"
-                        style={{ backgroundColor: selectedColor }}
-                      />
-                      {predefinedColors.find(c => c.value === selectedColor)?.name || 'Custom'}
-                    </div>
+                  <SelectValue placeholder="Select a color">
+                    {selectedColor && (
+                      <div className="flex items-center gap-2">
+                        <div
+                          className="w-4 h-4 rounded-full"
+                          style={{ backgroundColor: selectedColor }}
+                        />
+                        {predefinedColors.find(c => c.value === selectedColor)?.name || 'Custom'}
+                      </div>
+                    )}
                   </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
@@ -244,7 +246,7 @@ const Index = () => {
               <Input
                 id="color-picker"
                 type="color"
-                value={selectedColor}
+                value={selectedColor || "#000000"}
                 onChange={(e) => handleColorChange(e.target.value)}
                 className="h-10 w-20"
               />
@@ -264,7 +266,7 @@ const Index = () => {
 
           <Button
             onClick={() => processVideo()}
-            disabled={isProcessing}
+            disabled={isProcessing || !selectedColor}
             className="w-full"
           >
             {isProcessing ? "Processing..." : "Change Eye Color"}
