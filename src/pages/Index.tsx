@@ -318,15 +318,7 @@ const Index = () => {
       
       const faceMesh = new FaceMesh({
         locateFile: (file) => {
-          // Use multiple CDN fallbacks to ensure reliability
-          const cdnUrls = [
-            `https://unpkg.com/@mediapipe/face_mesh@0.4.1633559619/${file}`,
-            `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619/${file}`,
-            `https://www.unpkg.com/@mediapipe/face_mesh@0.4.1633559619/${file}`
-          ];
-          
-          // Return the first CDN URL, if it fails the browser will try the next one
-          return cdnUrls[0];
+          return `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619/${file}`;
         }
       });
 
@@ -461,3 +453,4 @@ const Index = () => {
 };
 
 export default Index;
+
