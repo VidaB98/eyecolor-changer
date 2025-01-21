@@ -165,7 +165,9 @@ const Index = () => {
 
         const drawIris = (centerPoint: number, boundaryPoints: number[], openRatio: number) => {
           if (!irisCtx) return;
-          if (openRatio < 0.005) return;
+          
+          // Increased threshold for when eyes are considered closed
+          if (openRatio < 0.01) return; // Higher threshold to prevent color showing when eyes are closed
 
           const centerX = landmarks[centerPoint].x * canvas.width;
           const centerY = landmarks[centerPoint].y * canvas.height;
@@ -178,16 +180,19 @@ const Index = () => {
           const radius = (radii.reduce((a, b) => a + b, 0) / radii.length) * 0.85;
 
           const maxOpacity = 0.6;
-          const minOpenRatio = 0.005;
+          const minOpenRatio = 0.01; // Increased minimum threshold
           const maxOpenRatio = 0.018;
           const opacity = Math.min(maxOpacity, 
             (openRatio - minOpenRatio) / (maxOpenRatio - minOpenRatio) * maxOpacity
           );
           
-          irisCtx.globalAlpha = opacity;
-          irisCtx.beginPath();
-          irisCtx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
-          irisCtx.fill();
+          // Only draw if the opacity is greater than 0
+          if (opacity > 0) {
+            irisCtx.globalAlpha = opacity;
+            irisCtx.beginPath();
+            irisCtx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
+            irisCtx.fill();
+          }
         };
 
         drawIris(leftIrisCenter, leftIrisBoundary, leftEyeOpenRatio);
