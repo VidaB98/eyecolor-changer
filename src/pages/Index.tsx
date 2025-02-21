@@ -1,3 +1,4 @@
+
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -314,9 +315,18 @@ const Index = () => {
         faceMeshRef.current = null;
       }
 
-      const { FaceMesh } = await import('@mediapipe/face_mesh');
+      // Import FaceMesh from the CDN directly
+      const script = document.createElement('script');
+      script.src = 'https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619/face_mesh.js';
       
-      const faceMesh = new FaceMesh({
+      await new Promise((resolve, reject) => {
+        script.onload = resolve;
+        script.onerror = reject;
+        document.head.appendChild(script);
+      });
+
+      // Create FaceMesh instance after script is loaded
+      const faceMesh = new window.FaceMesh({
         locateFile: (file) => {
           return `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619/${file}`;
         }
