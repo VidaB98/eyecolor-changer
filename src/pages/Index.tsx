@@ -15,7 +15,7 @@ import {
 
 const predefinedColors = [
   { name: "Brown", value: "#8B4513" },
-  { name: "Bright Red", value: "#FF0040" },
+  { name: "Bright Red", value: "#FF0000" },
 ];
 
 const Index = () => {
@@ -179,7 +179,7 @@ const Index = () => {
           });
           const radius = (radii.reduce((a, b) => a + b, 0) / radii.length) * 0.85;
 
-          const maxOpacity = 0.6;
+          const maxOpacity = selectedColor === "#FF0000" ? 0.9 : 0.6;
           const minOpenRatio = 0.005;
           const maxOpenRatio = 0.018;
           const opacity = Math.min(maxOpacity, 
@@ -195,7 +195,11 @@ const Index = () => {
         drawIris(leftIrisCenter, leftIrisBoundary, leftEyeOpenRatio);
         drawIris(rightIrisCenter, rightIrisBoundary, rightEyeOpenRatio);
 
-        ctx.globalCompositeOperation = "soft-light";
+        if (selectedColor === "#FF0000") {
+          ctx.globalCompositeOperation = "overlay";
+        } else {
+          ctx.globalCompositeOperation = "soft-light";
+        }
         ctx.drawImage(irisCanvas, 0, 0);
         ctx.globalCompositeOperation = "source-over";
       }
