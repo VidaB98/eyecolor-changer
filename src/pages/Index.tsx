@@ -1,4 +1,3 @@
-
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -163,8 +162,8 @@ const Index = () => {
         const irisCtx = irisCanvas.getContext('2d', { alpha: true });
         if (!irisCtx) return;
 
-        // Set iris color based on selection
         const isRedColor = selectedColor === "#FF0000";
+        
         irisCtx.fillStyle = selectedColor;
         irisCtx.strokeStyle = selectedColor;
 
@@ -180,10 +179,11 @@ const Index = () => {
             const dy = landmarks[point].y * canvas.height - centerY;
             return Math.hypot(dx, dy);
           });
-          const radius = (radii.reduce((a, b) => a + b, 0) / radii.length) * 0.85;
+          
+          const radiusMultiplier = isRedColor ? 0.95 : 0.85;
+          const radius = (radii.reduce((a, b) => a + b, 0) / radii.length) * radiusMultiplier;
 
-          // Different max opacity for red vs brown
-          const maxOpacity = isRedColor ? 0.9 : 0.6;
+          const maxOpacity = isRedColor ? 0.95 : 0.6;
           const minOpenRatio = 0.005;
           const maxOpenRatio = 0.018;
           const opacity = Math.min(maxOpacity, 
@@ -191,6 +191,17 @@ const Index = () => {
           );
           
           irisCtx.globalAlpha = opacity;
+          
+          if (isRedColor) {
+            const gradient = irisCtx.createRadialGradient(
+              centerX, centerY, radius * 0.4,
+              centerX, centerY, radius
+            );
+            gradient.addColorStop(0, "#FF0000");
+            gradient.addColorStop(1, "#AA0000");
+            irisCtx.fillStyle = gradient;
+          }
+          
           irisCtx.beginPath();
           irisCtx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
           irisCtx.fill();
@@ -199,13 +210,17 @@ const Index = () => {
         drawIris(leftIrisCenter, leftIrisBoundary, leftEyeOpenRatio);
         drawIris(rightIrisCenter, rightIrisBoundary, rightEyeOpenRatio);
 
-        // Different blend mode for red vs brown
         if (isRedColor) {
           ctx.globalCompositeOperation = "overlay";
+          ctx.drawImage(irisCanvas, 0, 0);
+          ctx.globalCompositeOperation = "screen";
+          ctx.globalAlpha = 0.4;
+          ctx.drawImage(irisCanvas, 0, 0);
+          ctx.globalAlpha = 1.0;
         } else {
           ctx.globalCompositeOperation = "soft-light";
+          ctx.drawImage(irisCanvas, 0, 0);
         }
-        ctx.drawImage(irisCanvas, 0, 0);
         ctx.globalCompositeOperation = "source-over";
       }
     }
