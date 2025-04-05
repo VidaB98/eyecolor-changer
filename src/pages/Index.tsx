@@ -1,4 +1,3 @@
-
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,9 +5,17 @@ import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Upload, Download } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const predefinedColors = [
   { name: "Brown", value: "#8B4513" },
+  { name: "Red", value: "#ea384c" },
 ];
 
 const Index = () => {
@@ -31,19 +38,16 @@ const Index = () => {
   const handleDownload = () => {
     if (!outputVideoRef.current || !mediaStreamRef.current || !videoRef.current) return;
 
-    // Create AudioContext only if it doesn't exist
     if (!audioContextRef.current) {
       audioContextRef.current = new AudioContext();
     }
 
-    // Create AudioSource only if it doesn't exist
     if (!audioSourceRef.current && audioContextRef.current) {
       audioSourceRef.current = audioContextRef.current.createMediaElementSource(videoRef.current);
     }
 
     const audioDestination = audioContextRef.current.createMediaStreamDestination();
     
-    // Connect the audio source to both the destination and audio context destination
     if (audioSourceRef.current) {
       audioSourceRef.current.connect(audioDestination);
       audioSourceRef.current.connect(audioContextRef.current.destination);
@@ -86,11 +90,9 @@ const Index = () => {
 
     mediaRecorder.start();
     
-    // Reset video to beginning and play for recording
     videoRef.current.currentTime = 0;
     videoRef.current.play();
 
-    // Stop recording after the video duration
     setTimeout(() => {
       mediaRecorder.stop();
       videoRef.current?.pause();
@@ -133,7 +135,6 @@ const Index = () => {
       return;
     }
 
-    // Match canvas size to video size
     if (canvas.width !== video.videoWidth || canvas.height !== video.videoHeight) {
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
@@ -249,7 +250,6 @@ const Index = () => {
       return;
     }
 
-    // Clean up previous resources
     if (mediaStreamRef.current) {
       mediaStreamRef.current.getTracks().forEach(track => track.stop());
     }
@@ -267,7 +267,6 @@ const Index = () => {
       videoRef.current.src = videoUrl;
       videoRef.current.load();
       
-      // Add error handling for video loading
       videoRef.current.onerror = () => {
         toast({
           title: "Error",
@@ -285,7 +284,6 @@ const Index = () => {
             await initFaceMesh();
           }
           
-          // Ensure video playback starts correctly
           try {
             await videoRef.current.play();
           } catch (playError) {
@@ -315,7 +313,6 @@ const Index = () => {
         faceMeshRef.current = null;
       }
 
-      // Import FaceMesh from CDN
       if (!window.FaceMesh) {
         const script = document.createElement('script');
         script.src = 'https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619/face_mesh.js';
@@ -327,7 +324,6 @@ const Index = () => {
         });
       }
 
-      // Create FaceMesh instance
       const faceMesh = new window.FaceMesh({
         locateFile: (file) => {
           return `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619/${file}`;
@@ -398,7 +394,7 @@ const Index = () => {
   return (
     <div className="container mx-auto p-4">
       <Card className="p-6 max-w-2xl mx-auto">
-        <h1 className="text-2xl font-bold mb-6">Change eye color to brown</h1>
+        <h1 className="text-2xl font-bold mb-6">Change eye color</h1>
 
         <div className="space-y-6">
           <div>
@@ -419,6 +415,31 @@ const Index = () => {
                 Choose Video
               </Button>
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="color-select">Select Eye Color</Label>
+            <Select
+              defaultValue={selectedColor}
+              onValueChange={(value) => setSelectedColor(value)}
+            >
+              <SelectTrigger id="color-select" className="w-full">
+                <SelectValue placeholder="Select a color" />
+              </SelectTrigger>
+              <SelectContent>
+                {predefinedColors.map((color) => (
+                  <SelectItem key={color.name} value={color.value}>
+                    <div className="flex items-center gap-2">
+                      <div
+                        className="h-4 w-4 rounded-full"
+                        style={{ backgroundColor: color.value }}
+                      ></div>
+                      {color.name}
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="space-y-4">
