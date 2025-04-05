@@ -15,7 +15,7 @@ import {
 
 const predefinedColors = [
   { name: "Brown", value: "#8B4513" },
-  { name: "Red", value: "#ea384c" },
+  { name: "Bright Red", value: "#FF0040" },
 ];
 
 const Index = () => {
