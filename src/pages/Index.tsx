@@ -1,3 +1,4 @@
+
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -162,6 +163,8 @@ const Index = () => {
         const irisCtx = irisCanvas.getContext('2d', { alpha: true });
         if (!irisCtx) return;
 
+        // Set iris color based on selection
+        const isRedColor = selectedColor === "#FF0000";
         irisCtx.fillStyle = selectedColor;
         irisCtx.strokeStyle = selectedColor;
 
@@ -179,7 +182,8 @@ const Index = () => {
           });
           const radius = (radii.reduce((a, b) => a + b, 0) / radii.length) * 0.85;
 
-          const maxOpacity = selectedColor === "#FF0000" ? 0.9 : 0.6;
+          // Different max opacity for red vs brown
+          const maxOpacity = isRedColor ? 0.9 : 0.6;
           const minOpenRatio = 0.005;
           const maxOpenRatio = 0.018;
           const opacity = Math.min(maxOpacity, 
@@ -195,7 +199,8 @@ const Index = () => {
         drawIris(leftIrisCenter, leftIrisBoundary, leftEyeOpenRatio);
         drawIris(rightIrisCenter, rightIrisBoundary, rightEyeOpenRatio);
 
-        if (selectedColor === "#FF0000") {
+        // Different blend mode for red vs brown
+        if (isRedColor) {
           ctx.globalCompositeOperation = "overlay";
         } else {
           ctx.globalCompositeOperation = "soft-light";
